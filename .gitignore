@@ -1,6 +1,23 @@
-__pycache__/
-.pytest_cache/
-.venv/
+# Private settings and generated artifacts
 .env
+.env.*
+!.env.example
+!.env.vm.example
+!.env.sample
+**/.git/
+node_modules/
+__pycache__/
+.local/
+.private/
+.runtime/
+runtime/
+backups/
+reports/
+dist/
 *.sqlite*
 *.db
+*.log
+*.pem
+*.key
+*.p12
+*.pfx

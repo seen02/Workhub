@@ -1,0 +1,8 @@
+FROM python:3.12-slim
+WORKDIR /app
+RUN pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+COPY requirements-embedding.txt requirements-embedding-lock.txt ./
+RUN pip install --no-cache-dir -r requirements-embedding.txt -c requirements-embedding-lock.txt
+COPY embedding_worker.py rag_chunks.py install_rag_models.py ./
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 CUDA_VISIBLE_DEVICES="" TOKENIZERS_PARALLELISM=false
+CMD ["uvicorn","embedding_worker:app","--host","0.0.0.0","--port","8000","--workers","1"]

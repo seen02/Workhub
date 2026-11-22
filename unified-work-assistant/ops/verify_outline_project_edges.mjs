@@ -1,0 +1,60 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {createRequire} from 'node:module';
+import {Session,root,settings} from './sso_test_client.mjs';
+const checks={},assert=(v,k)=>{if(!v)throw Error(k);checks[k]=true;console.log('PASS',k)};
+for(let i=0;i<45;i++){try{if((await fetch(settings.urls.outline+'/_health')).ok)break}catch{}await new Promise(r=>setTimeout(r,1000))}
+const session=new Session();await session.login(settings.urls.outline+'/auth/oidc');
+async function api(method,body={},raw=false){const r=await session.fetch(settings.urls.outline+'/api/'+method,{method:'POST',headers:{'Content-Type':'application/json',Origin:settings.urls.outline,'X-CSRF-Token':decodeURIComponent(session.jar.get('csrfToken')||'')},body:JSON.stringify(body)});const d=await r.json();if(raw)return {status:r.status,data:d};if(!r.ok)throw Error(method+' '+r.status+' '+d.message);return d.data}
+const fixture=JSON.parse(fs.readFileSync(path.join(root,'reports/outline-project-live-fixture.json')));
+const cid=fixture.id, info=()=>api('workhub.projectInfo',{collectionId:cid});
+const caps=await api('workhub.capabilities');
+const creationPath=path.join(root,'reports/outline-project-edge-creation.json');
+const basic=fs.existsSync(creationPath)?JSON.parse(fs.readFileSync(creationPath)):{name:'[검증] 일반 컬렉션·생성 재시도 '+Date.now(),workhubRequestId:crypto.randomUUID(),permission:null};
+fs.writeFileSync(creationPath,JSON.stringify(basic,null,2));
+const created=await Promise.all([api('collections.create',basic),api('collections.create',basic)]);
+assert(created[0].id===created[1].id,'concurrent_collection_create_is_idempotent');
+assert(!(await api('workhub.projectInfo',{collectionId:created[0].id})).linked,'ordinary_collection_not_auto_registered');
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE);
+const browser=await chromium.launch({headless:true,channel:'msedge'});const context=await browser.newContext({viewport:{width:1360,height:900}});
+await context.addCookies([...session.jar].filter(([name])=>!name.startsWith('authentik')).map(([name,value])=>({name,value,domain:new URL(settings.urls.outline).hostname,path:'/',httpOnly:!name.includes('csrf'),sameSite:'Lax'})));
+const page=await context.newPage();let drop=true;
+try{
+  await page.route('**/api/workhub.projectLink',async route=>{if(drop){drop=false;await route.fetch();await route.abort('failed')}else await route.continue()});
+  await page.goto(settings.urls.outline+'/workhub/projects/'+cid);
+  await page.getByTestId('workhub-link').waitFor({timeout:45000});
+  if(!(await info()).linked){await page.getByTestId('workhub-link').click();await page.getByTestId('workhub-unlink').waitFor({timeout:45000})}
+  assert((await info()).linked&&!drop,'lost_link_response_recovered_in_browser');
+  await page.unroute('**/api/workhub.projectLink');
+  let current=await info();
+  await api('workhub.projectManagerUpdate',{collectionId:cid,requestId:crypto.randomUUID(),expectedRevision:current.revision,managerSubject:null});
+  assert(!(await info()).project.manager,'manager_can_be_unassigned');
+  current=await info();await api('workhub.projectManagerUpdate',{collectionId:cid,requestId:crypto.randomUUID(),expectedRevision:current.revision,managerSubject:caps.subject});
+  assert((await info()).project.managerSubject===caps.subject,'manager_can_be_changed');
+  const portal=new Session();const me=await portal.portal();
+  const task=await portal.api('/api/tasks',{collection_id:cid,title:'해제 후 재연결 업무 목록 검증',fields:{owner:me.email,status:'미착수'},idem:crypto.randomUUID()});
+  assert(task.parentDocumentId!==fixture.parent,'relink_after_trash_creates_new_parent');
+  const pending=await portal.api('/api/tasks/'+task.id+'/proposals',{changes:{status:'진행 중'},idem:crypto.randomUUID()});
+  current=await info();const competing=await Promise.all([1,2].map(()=>api('workhub.projectManagerUpdate',{collectionId:cid,requestId:crypto.randomUUID(),expectedRevision:current.revision,managerSubject:caps.subject},true)));
+  assert(competing.filter(x=>x.status===200).length===1&&competing.filter(x=>x.status===409).length===1,'concurrent_settings_revision_conflict');
+  await page.reload();await page.getByTestId('workhub-unlink').waitFor({timeout:45000});await page.getByTestId('workhub-unlink').click();
+  const before=(await info()).revision;await page.getByRole('button',{name:'취소',exact:true}).click();assert((await info()).revision===before,'unlink_cancel_has_no_effect');
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(root,'reports/outline-project-mobile.png'),fullPage:true});
+  assert(await page.locator('[data-testid="workhub-project"]').evaluate(el=>el.scrollWidth<=el.clientWidth+1),'project_settings_mobile_no_overflow');
+  await page.getByTestId('workhub-unlink').click();await page.getByTestId('workhub-unlink-submit').click();
+  await page.getByTestId('workhub-link').waitFor({timeout:45000});assert(!(await info()).linked,'final_browser_unlink');
+  const r=await portal.fetch(settings.urls.portal+'/api/proposals/'+pending.id+'/confirm',{method:'POST',headers:{'Content-Type':'application/json',Origin:settings.urls.portal,'X-CSRF-Token':portal.csrf},body:'{}'});
+  assert([403,404,409].includes(r.status),'old_report_confirmation_blocked_after_unlink');
+  await context.addCookies([...portal.jar].filter(([name])=>name.startsWith('workhub_')).map(([name,value])=>({name,value,domain:new URL(settings.urls.portal).hostname,path:'/',httpOnly:true,sameSite:'Lax'})));
+  await page.setViewportSize({width:1360,height:900});
+  const ready=page.waitForResponse(r=>r.url().includes('/api/analytics?')&&r.ok(),{timeout:45000});
+  await page.goto(settings.urls.portal);await ready;
+  await page.locator('[data-tab="tasks"]').click();await page.getByRole('button',{name:'Outline에서 프로젝트 관리 ↗',exact:true}).waitFor({timeout:45000});
+  await page.getByRole('button',{name:'Outline에서 프로젝트 관리 ↗',exact:true}).click();await page.waitForURL('**/workhub/projects/**');await page.getByTestId('workhub-project').waitFor({timeout:45000});assert(true,'workhub_management_link_opens_outline');
+  const moved=await portal.fetch(settings.urls.portal+'/api/projects',{method:'POST',headers:{'Content-Type':'application/json',Origin:settings.urls.portal,'X-CSRF-Token':portal.csrf},body:JSON.stringify({existing_id:cid,idem:crypto.randomUUID()})});assert(moved.status===409,'legacy_mutation_returns_migration_guidance');
+  const baseline=JSON.parse(fs.readFileSync(path.join(root,'reports/outline-project-baseline.json')));
+  assert(JSON.stringify((await portal.api('/api/projects')).projects.map(p=>p.id).sort())===JSON.stringify(baseline.projects.map(p=>p.id).sort()),'final_registry_preserved');
+  fs.writeFileSync(path.join(root,'reports/outline-project-edge-results.json'),JSON.stringify({at:new Date().toISOString(),checks,generalCollection:created[0].id,fixtureTask:task.id},null,2));
+  console.log('Edge checks:',Object.keys(checks).length);
+}catch(e){await page.screenshot({path:path.join(root,'reports/outline-project-edge-failure.png'),fullPage:true});console.log((await page.locator('body').innerText()).slice(-2000));throw e}finally{await browser.close()}

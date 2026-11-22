@@ -1,0 +1,38 @@
+{
+  "services": {
+    "authentik-server": {
+      "environment": {
+        "AUTHENTIK_WEB__PATH": "${AUTHENTIK_PATH}",
+        "AUTHENTIK_WEB__BASE_URL": "http://${AUTH_PUBLIC_DOMAIN}:${PUBLIC_PORT}"
+      }
+    },
+    "authentik-worker": {
+      "environment": {
+        "AUTHENTIK_WEB__PATH": "${AUTHENTIK_PATH}",
+        "AUTHENTIK_WEB__BASE_URL": "http://${AUTH_PUBLIC_DOMAIN}:${PUBLIC_PORT}"
+      }
+    },
+    "outline": {
+      "environment": {
+        "URL": "http://${OUTLINE_DOMAIN}:${PUBLIC_PORT}",
+        "OIDC_AUTH_URI": "http://${AUTH_PUBLIC_DOMAIN}:${PUBLIC_PORT}${AUTHENTIK_PATH}application/o/authorize/",
+        "OIDC_TOKEN_URI": "http://authentik-server:9000${AUTHENTIK_PATH}application/o/token/",
+        "OIDC_USERINFO_URI": "http://authentik-server:9000${AUTHENTIK_PATH}application/o/userinfo/",
+        "OIDC_LOGOUT_URI": "http://${AUTH_PUBLIC_DOMAIN}:${PUBLIC_PORT}${AUTHENTIK_PATH}application/o/custom-outline/end-session/",
+        "OIDC_DISABLE_REDIRECT": "true",
+        "OIDC_DISPLAY_NAME": "회사 계정"
+      }
+    },
+    "workhub": {
+      "environment": {
+        "OUTLINE_PUBLIC_URL": "http://${OUTLINE_DOMAIN}:${PUBLIC_PORT}",
+        "AUTHENTIK_API_URL": "http://authentik-server:9000${AUTHENTIK_PATH}"
+      }
+    },
+    "reverse-proxy": {
+      "volumes": [
+        "./config/nginx/vm.conf.template:/etc/nginx/templates/default.conf.template:ro"
+      ]
+    }
+  }
+}

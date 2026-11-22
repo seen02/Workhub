@@ -1,0 +1,10 @@
+[
+  {"raw":"09:00~13:00 PostGIS 공간질의 3개 중 2개를 완료했습니다. 다음은 FastAPI 연동입니다. 이슈 없음.","progress":67,"duration_hours":4.0},
+  {"raw":"10:30~12:00 인증 문서 10개 중 7개를 작성했습니다. 다음 작업은 자체 점검입니다.","progress":70,"duration_hours":1.5},
+  {"raw":"영상 캡처를 모두 완료했습니다. 다음은 자막 검수입니다.","progress":100,"duration_hours":null},
+  {"raw":"14:00~17:30 데이터 품질 점검 진행률 45%입니다. 주소 오류가 확인되었습니다.","progress":45,"duration_hours":3.5},
+  {"raw":"08:30~09:30 API 명세 4개 중 1개를 검토했습니다.","progress":25,"duration_hours":1.0},
+  {"raw":"13:00~18:00 AI Agent 프레임워크 비교 20개 중 19개 완료, 내일 권고안을 작성할 예정입니다.","progress":95,"duration_hours":5.0},
+  {"raw":"11:00~12:00 회의록 정리를 시작했습니다. 진행률 10%입니다.","progress":10,"duration_hours":1.0},
+  {"raw":"09:00~17:00 배포 리허설을 완료했습니다. 이슈는 없습니다.","progress":100,"duration_hours":8.0}
+]

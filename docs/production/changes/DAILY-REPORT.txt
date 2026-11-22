@@ -1,0 +1,130 @@
+업무보고 도구 — VM 배포용 소스 반영 (2026-10-27)
+
+반영 위치
+output/outline-authentik/outline
+원본: unified-work-assistant/integrations/outline/outline-65be53c3eb093a535ce260eb2f2da897bb07a29e
+
+반영한 기능
+- 날짜 제목과 보고 표를 인식하고 기존 Outline 토글로 접기·펼치기.
+- 날짜 옆 ⋯에서 오늘 보고 추가, 미완료 업무 선택 이월, 하위 문서로 이동.
+- 같은 날짜 중복 생성 방지 및 이월 항목 중복 방지.
+- 작업자별 화면 필터. 필터는 보고 원본이나 다른 이용자의 내용을 바꾸지 않음.
+- 이 날짜 보고 삭제: 해당 날짜 제목 및 표를 포함한 보고 구간을 함께 삭제. 편집기 실행 취소 지원.
+- 관리자 전체 설정: 설정 → 워크스페이스 → 세부 정보 → 업무보고 도구 사용.
+- 문서별 설정: 문서 ⋯ → 업무보고 도구 토글. 켜기/끄기 두 상태만 제공.
+- 토글 스타일을 기존 설정과 통일하고 날짜 메뉴의 hover 배경 넘침 수정.
+
+사용 조건과 기본값
+- 컬렉션에 게시된 문서의 날짜 제목 아래, 첫 열이 작업자/담당자/이름인 표를 인식.
+- 미완료 이월은 계속/진행 열의 미체크 체크리스트 또는 [ ] 항목을 사용.
+- 변경 작업은 문서 편집 권한이 필요하며 서버에서도 권한과 버전 충돌을 검사.
+- 관리자 전체 설정이 꺼지면 문서별 설정보다 우선하여 업무보고 도구와 전용 API를 중단.
+- 새 문서는 기본 꺼짐. 설정을 저장한 적 없는 기존 문서는 켜짐으로 해석.
+- 이전에 저장된 auto 값은 호환을 위해 받아들이되 켜짐으로 정규화.
+- 전체/문서 설정을 꺼도 작성된 본문과 Outline 자체 토글은 유지.
+
+변경 파일: Outline 25개 (신규 11개, 기존 수정 14개)
+
+[편집기와 동작 연결]
+outline/app/editor/extensions/DailyReport.ts (신규)
+  날짜별 메뉴, 기존 토글 접기, 작업자 필터, 날짜 구간 삭제와 실행 취소.
+outline/shared/editor/lib/dailyReport.ts (신규)
+  보고 구간을 편집기 위치로 변환하고 설정 변경 신호 공유.
+outline/app/editor/index.tsx
+  업무보고 동작과 사용 여부를 편집기에 전달하고 설정 변경 즉시 갱신.
+outline/app/editor/extensions/index.ts
+  업무보고 확장 등록.
+outline/app/editor/components/BlockMenu.tsx
+  기존 슬래시 메뉴에 보고 추가/이월 명령 연결.
+outline/app/scenes/Document/components/Editor.tsx
+  문서 편집기에서 업무보고 훅과 대화상자 연결, 공개 공유/템플릿/이력 화면 제외.
+outline/shared/editor/components/Styles.ts
+  날짜 메뉴 및 작업자 필터 스타일, hover 넘침과 삭제 메뉴 색상 수정.
+
+[화면과 상태]
+outline/app/components/DailyReportActions.tsx (신규)
+  편집기 저장 상태와 서버 보고 동작을 연결하는 훅.
+outline/app/components/DailyReports.tsx (신규)
+  오늘 보고 생성·미완료 선택 이월·하위 문서 이동 대화상자.
+outline/app/stores/DailyReportStore.ts (신규)
+  보고와 이월 후보 조회, 선택 상태, 저장 동기화 및 API 호출.
+
+[설정]
+outline/app/components/DailyReportSettings.tsx (신규)
+  관리자 전체 스위치와 문서별 스위치, 저장 중 비활성 및 오류 처리.
+outline/app/scenes/Settings/Details.tsx
+  기존 워크스페이스 설정 화면에 전체 스위치 배치.
+outline/app/menus/DocumentMenu.tsx
+  기존 문서 메뉴에 공통 Switch 방식의 문서별 토글 배치.
+outline/shared/types.ts
+  업무보고 문서 설정과 워크스페이스 설정 타입 추가.
+outline/shared/constants.ts
+  전체 설정 및 기존 문서 설정의 기본값.
+
+[서버와 공통 규칙]
+outline/shared/utils/dailyReport.ts (신규)
+  날짜와 표 인식, 보고 구간 처리, 미완료 추출·중복 방지, 설정 판정.
+outline/server/routes/api/dailyReports.ts (신규)
+  보고 조회·생성·이월·하위 문서 이동, 인증·권한·설정·트랜잭션 검사.
+outline/server/routes/api/index.ts
+  업무보고 API 등록. VM에서 제외한 AI 검색 API는 추가하지 않음.
+outline/server/routes/api/documents/schema.ts
+  문서별 설정 입력 검증과 이전 auto 값 정규화.
+outline/server/routes/api/teams/schema.ts
+  워크스페이스 전체 설정 입력 검증.
+outline/server/commands/documentCreator.ts
+  새 문서 기본 꺼짐 및 생성 시 전달된 설정 처리.
+outline/server/models/helpers/DocumentHelper.tsx
+  구조화된 편집기 내용을 협업 상태와 함께 저장하는 공통 메서드 분리.
+
+[테스트]
+outline/app/editor/DailyReport.test.tsx (신규)
+  날짜 메뉴·토글·필터·삭제·실행 취소·설정 변경 검증, 13개.
+outline/shared/utils/dailyReport.test.ts (신규)
+  날짜/표 인식·이월/이동·기본값·설정 정규화 검증, 15개.
+outline/server/routes/api/dailyReports.test.ts (신규)
+  보고 API·권한·설정·생성/이월/이동·충돌 처리 검증, 15개.
+
+[반영 기록: 추가 4개 파일]
+README.md: 이번 업데이트와 설정 위치 안내.
+customizations.json: 반영 파일 목록·원본/반영본 SHA256·검증 기록.
+source-origin.json: 업무보고 변경 파일을 패치 목록에 추가.
+DAILY-REPORT.txt: 이 문서.
+
+원본과의 대조
+- 22개 파일은 로컬 기능 소스와 바이트 단위로 일치.
+- API index는 dailyReports 등록만 병합하여 VM의 AI 검색 제외 설정 보존.
+- app/editor/index.tsx는 인라인 타입 import를 일반 import type으로 정리.
+- app/menus/DocumentMenu.tsx는 현재 문서와 표시 설정의 useMemo 의존성을 보완.
+- 의존성 선언 및 yarn.lock은 원본과 동일. 새 패키지 추가 없음.
+
+검증
+- VM용 소스에서 업무보고 관련 테스트 43개 통과.
+- 타입 import 정리 후 편집기 테스트 13개 재검증 통과.
+- 전체 TypeScript 검사 통과.
+- 변경한 Outline 25개 파일 포맷 검사 통과.
+- Oxlint 오류 0개. 원본의 경고 7개(구간 키 문자열 변환 1개, 테스트 mock 메서드 참조 6개)는 유지.
+- VM 설정 테스트 5개 통과.
+- scripts/validate.py 통과: Python 44개 파일 및 Compose 8개 서비스, 제외 API/도메인 검사.
+- 검증 시 원본과 동일한 로컬 node_modules 캐시를 임시 연결하여 사용하고 연결은 제거.
+- 테스트 설정은 프로세스 환경에만 적용. 실제 .env와 운영 데이터는 사용·변경하지 않음.
+- 검증 로그: reports/daily-reports/ (배포 ZIP에는 제외).
+
+배포 범위
+- 이번 작업은 배포용 소스 반영과 소스 ZIP 갱신까지 수행.
+- Docker 이미지 빌드·실행 컨테이너 교체·VM 원격 전송/배포는 수행하지 않음.
+- Workhub, Authentik, Compose, 환경변수, DB 스키마는 변경하지 않음.
+- 예시/안내 문서는 DB 데이터이므로 VM용 소스에 복사하지 않음.
+- 새 DB 마이그레이션이나 환경변수 없음. 업무보고 변경만 적용할 때는 Outline만 재빌드/교체.
+- 기존 운영 .env와 데이터 볼륨을 유지하고 VM의 기존 Compose 설정을 사용.
+
+VM에서 직접 빌드하는 경우(이 작업에서 실행하지 않음)
+docker compose build outline
+docker compose up -d --no-deps --no-build --force-recreate outline
+
+이미지 TAR로 배포하는 환경은 기존 VM 이미지 빌드/전송 절차를 사용.
+기존 dist/vm-images 및 이미지 TAR에는 이번 변경이 포함되어 있지 않음.
+
+갱신한 소스 배포 파일
+dist/outline-authentik-source.zip
+dist/outline-authentik-source.zip.sha256

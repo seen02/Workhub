@@ -1,0 +1,2 @@
+FROM workhub-release/embedding-worker:20261007-1
+COPY src/document-agent/embedding_worker.py src/document-agent/rag_chunks.py src/document-agent/install_rag_models.py /app/

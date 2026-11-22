@@ -1,0 +1,35 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {Session,root,settings,credentials} from './sso_test_client.mjs';
+const s=new Session();const me=await s.portal();
+const cfg=JSON.parse(fs.readFileSync(path.join(root,'.local/compose.json')));
+const env=cfg.services['document-agent'].environment;
+async function outline(endpoint,body){const r=await fetch(settings.urls.outline+'/api/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+env.OUTLINE_API_KEY},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(endpoint+' '+r.status+' '+d.message);return d.data;}
+const assert=(v,m)=>{if(!v)throw Error(m)};
+const before=(await s.api('/api/tasks')).tasks.length;
+const idem='verification-'+crypto.randomUUID();
+const payload={title:'[검증] 통합 업무 저장·충돌·중복 확인',fields:{project:'통합 검증',owner:me.email,due:'2026-09-30',status:'미착수',progress:'0%',blocker:'없음',next:'검증 시작',result:'없음'},notes:'검증용 문서입니다. 같은 문서의 상태 변경을 확인합니다.',idem};
+const t=await s.api('/api/tasks',payload);const duplicate=await s.api('/api/tasks',payload);assert(t.id===duplicate.id,'Create idempotence');
+let d=await outline('documents.info',{id:t.id});
+await outline('documents.update',{id:t.id,text:d.text.replace('상태: 미착수','상태: 진행 중').replace('진행률: 0%','진행률: 40%'),lastRevision:d.revision});
+await s.api('/api/sync',{});
+let ts=(await s.api('/api/tasks')).tasks;assert(ts.find(x=>x.id===t.id).fields.progress==='40%','Direct Outline sync');
+const p=await s.api('/api/tasks/'+t.id+'/proposals',{changes:{progress:'60%'},idem:crypto.randomUUID(),notes:'진행률 60% 보고'});
+assert((await outline('documents.info',{id:t.id})).text.includes('진행률: 40%'),'Draft must stay private');
+await s.api('/api/proposals/'+p.id+'/confirm',{});await s.api('/api/proposals/'+p.id+'/confirm',{});
+d=await outline('documents.info',{id:t.id});assert(d.text.includes('진행률: 60%'),'Confirmed progress');
+const conflict=await s.api('/api/tasks/'+t.id+'/proposals',{changes:{progress:'70%'},idem:crypto.randomUUID()});
+await outline('documents.update',{id:t.id,text:d.text.replace('진행률: 60%','진행률: 65%'),lastRevision:d.revision});
+let conflictOk=false;try{await s.api('/api/proposals/'+conflict.id+'/confirm',{})}catch(e){conflictOk=e.message.includes('409')}
+assert(conflictOk,'Stale draft must fail');
+assert((await outline('documents.info',{id:t.id})).text.includes('진행률: 65%'),'Conflict must preserve direct edit');
+const csrf=await s.fetch(settings.urls.portal+'/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert(csrf.status===403,'CSRF protection');
+await s.api('/api/sync',{});ts=(await s.api('/api/tasks')).tasks;assert(ts.length===before+1,'Updates must not create tasks');
+const stats=await s.api('/api/stats');assert(stats.events.filter(e=>e.doc_id===t.id).length>=3,'State history');
+const weekly=await s.api('/api/weekly');const published=await s.api('/api/weekly/'+weekly.id+'/publish',{});const publishedAgain=await s.api('/api/weekly/'+weekly.id+'/publish',{});assert(published.url===publishedAgain.url,'Publish idempotence');
+await s.api('/api/sync',{});assert((await s.api('/api/tasks')).tasks.length===ts.length,'Summary is not a task');
+await outline('documents.archive',{id:t.id});await s.api('/api/sync',{});assert((await s.api('/api/tasks')).tasks.length===before,'Archived task removed from stats');
+const noauth=await fetch(settings.urls.portal+'/api/stats');assert(noauth.status===401,'Anonymous stats denied');
+const result={at:new Date().toISOString(),admin:me.email,task_id:t.id,task_archived:true,checks:{create_idempotency:true,direct_outline_sync:true,private_draft:true,confirmation:true,repeat_confirmation:true,conflict_409:true,conflict_preserves_source:true,no_duplicate_tasks:true,csrf_403:true,anonymous_401:true,observed_history:true,weekly_publish:true,weekly_publish_idempotency:true,summary_excluded:true,archived_excluded:true}};
+fs.writeFileSync(path.join(root,'reports/workflow-verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));

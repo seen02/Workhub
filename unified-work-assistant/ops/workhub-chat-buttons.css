@@ -1,0 +1,55 @@
+/* Workhub attachment actions only. Match command values so existing messages
+   receive the same colors; never restyle Rocket.Chat's general navigation. */
+
+/* Report composer: compact rows, a clear next action, quiet secondary actions. */
+.rcx-message-attachment button[value^="긴급 취소 · "]{background:#b91c1c!important;color:#fff!important;border:1px solid #b91c1c!important;border-radius:8px!important;min-height:40px;padding:8px 16px!important;font-weight:700!important}
+/* Personal tasks: prominent green continuation, neutral task selection. */
+.rcx-message-attachment:has(button[value^="내 업무 보기 · "]){border-left:0!important;padding-left:0!important;margin-top:8px!important}
+.rcx-message-attachment button[value^="내 업무 보기 · "]{
+  background:#f8fafc!important;color:#334155!important;border:1px solid #cbd5e1!important;
+  border-radius:7px!important;min-height:34px;padding:7px 12px!important;
+  white-space:normal!important;line-height:1.4;font-weight:600;max-width:100%!important;
+}
+.rcx-message-attachment button[value^="내 업무 보기 · "] .rcx-button--content{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere}
+.rcx-message-attachment button[value^="내 업무 보기 · 더보기 · "]{background:#047857!important;color:#fff!important;border-color:#047857!important;min-width:160px;min-height:44px;font-size:15px!important;font-weight:700!important;text-align:center!important}
+.rcx-message-attachment:has(button[value^="내 업무 보기 · 더보기 · "]){padding-bottom:20px!important;margin-bottom:20px!important;border-bottom:1px solid #cbd5e1!important}
+.rcx-message-attachment button[value^="내 업무 보기 · 목록으로 돌아가기 · "]{background:#f8fafc!important;color:#475569!important;border-color:#cbd5e1!important}
+.rcx-message-attachment button[value^="내 업무 보기 · "]:hover:not(:disabled){filter:brightness(.95)}
+.rcx-message-attachment button[value^="내 업무 보기 · "]:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+.rcx-message-attachment button[value^="내 업무 보기 · "]:disabled{opacity:.55;cursor:wait}
+
+.rcx-button-group:has(> button[value^="보고 · "]){display:flex!important;flex-wrap:wrap!important;gap:6px!important}
+.rcx-message-attachment:has(button[value^="보고 · "]){border-left:0!important;padding-left:0!important;margin-top:8px!important}
+.rcx-message-attachment button[value^="보고 · "]{
+  background:#f8fafc!important;color:#334155!important;border:1px solid #cbd5e1!important;
+  border-radius:8px!important;min-height:36px;padding:8px 12px!important;
+  white-space:normal!important;line-height:1.35;font-weight:600;flex:0 1 auto!important;max-width:100%!important;
+}
+.rcx-message-attachment button[value^="보고 · "] .rcx-button--content{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere}
+.rcx-message-attachment button:is([value^="보고 · 보고 및 반영 ·"],[value^="보고 · 보고하기 ·"],[value^="보고 · 보고할 곳 선택 ·"]){background:#1d4ed8!important;color:white!important;border-color:#1d4ed8!important}
+.rcx-message-attachment button[value^="보고 · 업무에 반영 ·"]{background:#15803d!important;color:white!important;border-color:#15803d!important}
+.rcx-message-attachment button[value^="보고 · 취소 ·"]{color:#b91c1c!important;background:#fff!important;border-color:#fecaca!important}
+.rcx-message-attachment button[value^="보고 · "]:hover{filter:brightness(.95)}
+.rcx-message-attachment button[value^="보고 · "]:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+.rcx-message-attachment button:is([value="현재 업무"],[value="업무"],[value="프로젝트"],[value^="프로젝트 선택 · "],[value^="업무 선택 · "],[value^="보고 확정 · "],[value^="보고 취소 · "],[value^="업무 목록 "],[value^="프로젝트 목록 "]){
+  --wh-bg:#eff6ff;--wh-fg:#1d4ed8;--wh-border:#93c5fd;--wh-hover:#dbeafe;
+  background:var(--wh-bg)!important;color:var(--wh-fg)!important;
+  border:1px solid var(--wh-border)!important;border-radius:7px!important;
+  min-height:34px;padding:7px 12px!important;white-space:normal;
+  text-align:left;line-height:1.4;font-weight:600;
+}
+.rcx-message-attachment button[value="업무"]{
+  --wh-bg:#f1f5f9;--wh-fg:#334155;--wh-border:#94a3b8;--wh-hover:#e2e8f0;
+}
+.rcx-message-attachment button[value="프로젝트"]{
+  --wh-bg:#f3e8ff;--wh-fg:#6b21a8;--wh-border:#c084fc;--wh-hover:#e9d5ff;
+}
+.rcx-message-attachment button[value^="보고 확정 · "]{
+  --wh-bg:#15803d;--wh-fg:#fff;--wh-border:#166534;--wh-hover:#166534;
+}
+.rcx-message-attachment button[value^="보고 취소 · "]{
+  --wh-bg:#fff1f2;--wh-fg:#be123c;--wh-border:#fda4af;--wh-hover:#ffe4e6;
+}
+.rcx-message-attachment button:is([value="현재 업무"],[value="업무"],[value="프로젝트"],[value^="프로젝트 선택 · "],[value^="업무 선택 · "],[value^="보고 확정 · "],[value^="보고 취소 · "],[value^="업무 목록 "],[value^="프로젝트 목록 "]):hover:not(:disabled){background:var(--wh-hover)!important}
+.rcx-message-attachment button:is([value="현재 업무"],[value="업무"],[value="프로젝트"],[value^="프로젝트 선택 · "],[value^="업무 선택 · "],[value^="보고 확정 · "],[value^="보고 취소 · "],[value^="업무 목록 "],[value^="프로젝트 목록 "]):focus-visible{outline:2px solid var(--wh-fg);outline-offset:3px}
+.rcx-message-attachment button:is([value="현재 업무"],[value="업무"],[value="프로젝트"],[value^="프로젝트 선택 · "],[value^="업무 선택 · "],[value^="보고 확정 · "],[value^="보고 취소 · "],[value^="업무 목록 "],[value^="프로젝트 목록 "]):disabled{opacity:.55;cursor:wait}

@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {Session,root} from './sso_test_client.mjs';
+const s=new Session();await s.portal();
+const stats=await s.api('/api/stats?project='+encodeURIComponent('통합 시연'));
+const operations=await s.api('/api/operations');
+const answer=await s.api('/api/research',{text:'고객용 업무 화면 검증의 현재 진행률은 얼마인가요?'});
+if(!answer.display.startsWith('진행률: 0%'))throw Error('Current source must win over old 60% report history');
+if(stats.summary.total!==3||stats.summary.completion_rate!==33.3)throw Error('Demo initial state incorrect');
+const result={at:new Date().toISOString(),summary:stats.summary,operations,current_source_over_old_report:true,answer:answer.display};
+fs.writeFileSync(path.join(root,'reports/final-state.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));

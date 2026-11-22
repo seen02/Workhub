@@ -1,0 +1,5 @@
+# Preserve the audited 1.0.0 Python runtime and installed dependencies.
+ARG BASE_IMAGE=custom-outline/workhub:criteria-base-1.0.0
+FROM ${BASE_IMAGE}
+COPY --chown=workhub:workhub workhub/src/workhub/task_creation.py /usr/local/lib/python3.12/site-packages/workhub/task_creation.py
+COPY --chown=workhub:workhub workhub/src/workhub/task_creation.py /app/src/workhub/task_creation.py

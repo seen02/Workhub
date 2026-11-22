@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "custom-outline-workhub"
+version = "1.0.0"
+description = "Outline-only project, task, kanban and analytics backend"
+requires-python = ">=3.12"
+dependencies = ["fastapi==0.116.1", "starlette==0.47.3", "httpx==0.28.1", "uvicorn==0.35.0", "pydantic==2.11.7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["test_*.py", "__pycache__/*"]

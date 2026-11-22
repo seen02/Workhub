@@ -1,0 +1,121 @@
+name: work-assistant-chat
+
+# Local development only: no MongoDB port and no LAN-facing chat port.
+services:
+  reportdb:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: work_agent
+      POSTGRES_USER: work_agent
+      POSTGRES_PASSWORD: ${REPORT_DB_PASSWORD:?Run setup.py init first}
+    volumes:
+      - report-postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U work_agent -d work_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [database]
+
+  mongodb:
+    image: mongo:8.0.12
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.5"]
+    volumes:
+      - chat-mongo:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { quit(rs.status().ok === 1 ? 0 : 1) } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb:27017'}]}); quit(1) }"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+    networks: [database]
+
+  rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:8.5.0
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      ROOT_URL: http://127.0.0.1:3000
+      PORT: "3000"
+      MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
+      DEPLOY_METHOD: docker
+      DEPLOY_PLATFORM: compose
+      ADMIN_USERNAME: poc-admin
+      ADMIN_NAME: PoC Administrator
+      ADMIN_EMAIL: poc-admin@example.invalid
+      ADMIN_PASS: ${RC_ADMIN_PASSWORD:?Run setup.py init first}
+      OVERWRITE_SETTING_Show_Setup_Wizard: completed
+      OVERWRITE_SETTING_Site_Name: LT.Chat
+      OVERWRITE_SETTING_Language: ko
+      OVERWRITE_SETTING_Accounts_RegistrationForm: Disabled
+      # No SMTP/real email in this loopback-only synthetic test installation.
+      # Production must configure MFA with real identity management.
+      OVERWRITE_SETTING_Accounts_TwoFactorAuthentication_By_Email_Enabled: "false"
+      OVERWRITE_SETTING_Accounts_TwoFactorAuthentication_By_Email_Auto_Opt_In: "false"
+      OVERWRITE_SETTING_Statistics_reporting: "false"
+      OVERWRITE_SETTING_Analytics_Enabled: "false"
+      OVERWRITE_SETTING_Push_enable: "false"
+      OVERWRITE_SETTING_Message_AllowConvertLongMessagesToAttachment: "false"
+    restart: unless-stopped
+    networks: [database, chat]
+
+  review:
+    build: ../backend
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.rocketchat.review_app:app --host 0.0.0.0 --port 8003"]
+    depends_on:
+      reportdb:
+        condition: service_healthy
+      rocketchat:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg://work_agent:${REPORT_DB_PASSWORD}@reportdb:5432/work_agent
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      LOCAL_LLM_MODEL: gemma3:4b
+      LOCAL_LLM_FALLBACK_TO_MOCK: "false"
+      ROCKETCHAT_INTERNAL_URL: http://rocketchat:3000
+      ROCKETCHAT_PUBLIC_URL: http://127.0.0.1:3000
+      REVIEW_PUBLIC_URL: http://127.0.0.1:8003
+      ROCKETCHAT_LOCAL_PATH: /runtime
+      PYTHONUTF8: "1"
+    volumes:
+      - ./.local:/runtime
+    ports: ["127.0.0.1:8003:8003"]
+    restart: unless-stopped
+    networks: [database, chat]
+
+  worker:
+    build: ../backend
+    command: ["sh", "-c", "alembic upgrade head && python -m app.rocketchat.worker"]
+    depends_on:
+      reportdb:
+        condition: service_healthy
+      rocketchat:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg://work_agent:${REPORT_DB_PASSWORD}@reportdb:5432/work_agent
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      LOCAL_LLM_MODEL: gemma3:4b
+      LOCAL_LLM_TIMEOUT_SECONDS: "120"
+      LOCAL_LLM_RETRIES: "2"
+      LOCAL_LLM_FALLBACK_TO_MOCK: "false"
+      ROCKETCHAT_INTERNAL_URL: http://rocketchat:3000
+      ROCKETCHAT_PUBLIC_URL: http://127.0.0.1:3000
+      REVIEW_PUBLIC_URL: http://127.0.0.1:8003
+      ROCKETCHAT_LOCAL_PATH: /runtime
+      PYTHONUTF8: "1"
+    volumes:
+      - ./.local:/runtime
+    restart: unless-stopped
+    networks: [database, chat]
+
+networks:
+  database:
+    internal: true
+  chat: {}
+
+volumes:
+  chat-mongo: {}
+  report-postgres: {}

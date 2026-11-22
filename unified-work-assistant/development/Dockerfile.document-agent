@@ -1,0 +1,2 @@
+FROM workhub-release/document-agent:20261007-1
+COPY src/document-agent /app

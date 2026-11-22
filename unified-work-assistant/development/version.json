@@ -1,0 +1,24 @@
+{
+  "version": "20261007-1",
+  "captured_at": "2026-10-07T05:16:01.510365+00:00",
+  "source_kind": "current working tree including uncommitted changes",
+  "git_head": "4f10ab4f1f29c45b4e2b6d45b1db07d6f3e824de",
+  "runtime_images": {
+    "workhub-release/authentik-server:20261007-1": "sha256:9d605ed569ff9f39146be39da93714b2acf19072acc4ab0f0e2f2d81be88cdce",
+    "workhub-release/authentik-worker:20261007-1": "sha256:9d605ed569ff9f39146be39da93714b2acf19072acc4ab0f0e2f2d81be88cdce",
+    "workhub-release/document-agent:20261007-1": "sha256:8d3e35e49c840123b40f324637adc37e73f49759433b75a7d3996cebe90fce22",
+    "workhub-release/embedding-worker:20261007-1": "sha256:3b7cf014d0ec2af5e4bf0435cd7fcab84c1f896a2070e0eb280e472a82e8b934",
+    "workhub-release/mailpit:20261007-1": "sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365",
+    "workhub-release/mongodb:20261007-1": "sha256:95a98776f273721a295b03098578b06bc10281bb56aa828c77e9f60ecc70b150",
+    "workhub-release/ollama:20261007-1": "sha256:0c0a83210471fb50226bcdc2d6611d20ab13ae87e024cc304c94a6a5765c5e65",
+    "workhub-release/open-webui:20261007-1": "sha256:7b9979b1c481b1562c1abe85af350e1cfd23c7737b0705bf4dbf0d2325168c75",
+    "workhub-release/outline:20261007-1": "sha256:f270f2efc2eff8734cf3875e5c5eebb8966c8ed093d3bcf673b911cc5aed8a2d",
+    "workhub-release/postgres:20261007-1": "sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
+    "workhub-release/postgresql:20261007-1": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+    "workhub-release/rag-postgres:20261007-1": "sha256:feb68f4f15446397d8cac7f4fe48fe4586de83160d1fc48b46283312d1a33966",
+    "workhub-release/redis:20261007-1": "sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576",
+    "workhub-release/reverse-proxy:20261007-1": "sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+    "workhub-release/rocketchat:20261007-1": "sha256:e279b7fb44c35f352c1064e98240a8e27bc4145cab6ac443be238f2e7b18d7c6",
+    "workhub-release/workhub:20261007-1": "sha256:ad6a22bb738026a15285158042aecfa03d5fa884bf6dc37d2bb6ee50dcb28f24"
+  }
+}

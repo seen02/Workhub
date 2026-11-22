@@ -1,0 +1,12 @@
+FROM python:3.12-slim-bookworm
+WORKDIR /app
+COPY workhub/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY workhub/pyproject.toml ./pyproject.toml
+COPY workhub/setup.py ./setup.py
+COPY workhub/src ./src
+RUN pip install --no-cache-dir --no-deps . && useradd --uid 10001 --create-home workhub && mkdir -p /app/data && chown workhub:workhub /app/data
+USER workhub
+ENV WORKHUB_DB=/app/data/workhub.sqlite3 PYTHONUNBUFFERED=1
+EXPOSE 8000
+CMD ["uvicorn", "workhub.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]

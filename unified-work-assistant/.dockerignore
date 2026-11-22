@@ -1,0 +1,17 @@
+.local
+backups
+runtime
+reports
+deployment
+deployment-archive
+deployment-next-*
+output
+.ui-review
+integrations
+**/.git
+**/.local
+**/__pycache__
+**/node_modules
+**/.env
+**/*.sqlite*
+**/*.db

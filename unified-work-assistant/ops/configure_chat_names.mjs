@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {root,settings} from './sso_test_client.mjs';
+const rc=JSON.parse(fs.readFileSync(path.join(root,'src/report-agent/rocketchat/.local/credentials.json')));
+const base=settings.urls.chat+'/api/v1/';
+const login=await fetch(base+'login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:rc.admin.username,password:rc.admin.password})});
+if(!login.ok)throw Error('Rocket administrator login failed');
+const {data}=await login.json();
+const headers={'Content-Type':'application/json','X-User-Id':data.userId,'X-Auth-Token':data.authToken,'X-2fa-Method':'password','X-2fa-Code':crypto.createHash('sha256').update(rc.admin.password).digest('hex')};
+const r=await fetch(base+'settings/UI_Use_Real_Name',{method:'POST',headers,body:JSON.stringify({value:true})});
+if(!r.ok)throw Error('Real-name display setting HTTP '+r.status);
+console.log('Rocket.Chat: 메시지 작성자를 Authentik 표시 이름으로 표시하도록 설정했습니다.');

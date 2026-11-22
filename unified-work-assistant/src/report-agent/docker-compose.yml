@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: work_agent
+      POSTGRES_USER: work_agent
+      POSTGRES_PASSWORD: work_agent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U work_agent -d work_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${LOCAL_LLM_MODEL:-gemma3:4b}"]
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://work_agent:work_agent@db:5432/work_agent
+      LLM_PROVIDER: ${LLM_PROVIDER:-local}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma3:4b}
+      OLLAMA_BASE_URL: http://ollama:11434
+      LOCAL_LLM_TIMEOUT_SECONDS: ${LOCAL_LLM_TIMEOUT_SECONDS:-120}
+      LOCAL_LLM_RETRIES: ${LOCAL_LLM_RETRIES:-2}
+      LOCAL_LLM_FALLBACK_TO_MOCK: ${LOCAL_LLM_FALLBACK_TO_MOCK:-true}
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      AUTH_MODE: ${AUTH_MODE:-demo}
+      JWT_JWKS_URL: ${JWT_JWKS_URL:-}
+      JWT_ISSUER: ${JWT_ISSUER:-}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-}
+      JWT_ROLE_CLAIM: ${JWT_ROLE_CLAIM:-role}
+      JWT_EMPLOYEE_ID_CLAIM: ${JWT_EMPLOYEE_ID_CLAIM:-employee_id}
+      JWT_MANAGER_ROLE: ${JWT_MANAGER_ROLE:-manager}
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    ports:
+      - "8001:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8001/api
+        VITE_AUTH_MODE: ${VITE_AUTH_MODE:-demo}
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
+  ollama_data:

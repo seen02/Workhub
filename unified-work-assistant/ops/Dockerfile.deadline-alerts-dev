@@ -1,0 +1,3 @@
+FROM unified-work-assistant/workhub:report-latency-20261007
+COPY src/workhub /app/workhub
+COPY ops/run_workhub_tests.py /app/run_workhub_tests.py

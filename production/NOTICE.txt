@@ -1,0 +1,6 @@
+This repository contains a customized copy of Outline 1.10.0.
+Upstream: https://github.com/outline/outline
+Upstream revision: 65be53c3eb093a535ce260eb2f2da897bb07a29e
+The original license and copyright notices are preserved in outline/LICENSE.
+Custom application and deployment sources are supplied alongside Outline.
+Source provenance and customized file paths are recorded in source-origin.json.

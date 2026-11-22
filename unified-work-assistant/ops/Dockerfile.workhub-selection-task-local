@@ -1,0 +1,5 @@
+ARG WORKHUB_RUNTIME_IMAGE=unified-work-assistant/workhub:task-edit-20261019
+FROM ${WORKHUB_RUNTIME_IMAGE}
+COPY src/workhub /app/workhub
+COPY src/report-agent/backend/app /app/legacy_app
+COPY ops/run_workhub_tests.py /app/run_workhub_tests.py

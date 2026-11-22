@@ -1,9 +1,52 @@
-Workhub Source Publication Notice
+WORKHUB REPOSITORY LICENSE NOTICE
 
-Copyright remains with the respective rights holders. This source publication is
-available for review and grants no additional license to use, modify, reproduce
-or redistribute the materials. Existing rights and agreements remain in force.
+This repository contains materials with different copyright and license terms.
+There is no single license covering the entire repository.
 
-This repository contains Workhub's own integration code. Outline, Rocket.Chat,
-Authentik, Ollama, model weights and other external components retain their own
-license terms. Those components are not redistributed by this notice.
+1. Repository-specific materials
+
+Except for materials governed by an existing third-party license or a separate
+agreement, no additional license to use, reproduce, modify, redistribute,
+sublicense, or sell repository-specific code, documentation, or assets is
+granted by this notice. All rights are reserved by the respective rights
+holders. This notice does not identify the repository account holder as the
+owner of every contribution and does not change any existing ownership or
+contractual arrangement. Access to a private repository does not transfer
+copyright or authorize further disclosure.
+
+In particular, this repository is not offered as a whole under the MIT,
+Apache-2.0, or any other permissive open-source license.
+
+2. Outline-derived materials
+
+Outline 1.10.0, pinned to upstream commit
+65be53c3eb093a535ce260eb2f2da897bb07a29e, and copies, modified copies, and
+derivative works of that licensed work remain subject to the original
+Business Source License 1.1, including its original parameters.
+
+This includes the production Outline source, the local integration patch,
+and any Outline-derived code
+wherever it appears in this repository. The original terms are reproduced in
+production/outline/LICENSE, unified-work-assistant/integrations/outline/LICENSE,
+and LICENSES/Outline-1.10.0.txt. This notice does
+not replace, narrow, or expand the rights granted by those terms.
+
+The upstream license names General Outline, Inc. as Licensor, specifies a
+Change Date of 2030-09-01 and Apache License, Version 2.0 as Change License,
+and restricts use for a defined Document Service. The full upstream license,
+including its earlier-fourth-anniversary provision, controls.
+
+3. Rocket.Chat and other third-party materials
+
+Rocket.Chat 8.5.0 has MIT-licensed Community portions, separately licensed
+Enterprise portions, and third-party components with their own licenses.
+The version-specific root and Enterprise notices are reproduced under
+LICENSES/. Refer to docs/THIRD_PARTY_NOTICES.md for scope and upstream links.
+
+Other third-party code, dependencies, software images, models, fonts, and
+assets remain subject to their respective licenses. This notice does not
+relicense those materials, grant trademark rights, or constitute an
+endorsement by their maintainers.
+
+Existing rights granted by upstream licenses, mandatory law, and separate
+agreements are unaffected. See docs/LICENSING.md and docs/THIRD_PARTY_NOTICES.md.

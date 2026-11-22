@@ -1,0 +1,103 @@
+name: outline-ai
+services:
+  ollama:
+    image: ollama/ollama@sha256:0c0a83210471fb50226bcdc2d6611d20ab13ae87e024cc304c94a6a5765c5e65
+    gpus: all
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_CONTEXT_LENGTH: "4096"
+      OLLAMA_KEEP_ALIVE: "5m"
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_KV_CACHE_TYPE: q8_0
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+  open-webui:
+    image: ghcr.io/open-webui/open-webui@sha256:7b9979b1c481b1562c1abe85af350e1cfd23c7737b0705bf4dbf0d2325168c75
+    ports:
+      - "127.0.0.1:3001:8080"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_AUTH: "False"
+      OFFLINE_MODE: "true"
+      RAG_EMBEDDING_ENGINE: ollama
+      BYPASS_EMBEDDING_AND_RETRIEVAL: "True"
+      DEFAULT_MODELS: outline-assistant
+      ENABLE_OPENAI_API: "False"
+      ENABLE_WEB_SEARCH: "False"
+      ENABLE_VERSION_UPDATE_CHECK: "False"
+      ENABLE_EVALUATION_ARENA_MODELS: "False"
+      CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS: "4"
+    volumes:
+      - webui:/app/backend/data
+    restart: unless-stopped
+  document-agent:
+    build: .
+    depends_on:
+      rag-postgres:
+        condition: service_healthy
+        required: false
+      embedding-worker:
+        condition: service_healthy
+        required: false
+    ports:
+      - "127.0.0.1:3002:8000"
+    env_file: .env
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+      OUTLINE_URL: http://host.docker.internal:8090/api
+      RAG_ENABLED: ${RAG_ENABLED:-false}
+      RAG_DB_PASSWORD: ${RAG_DB_PASSWORD:-}
+      RAG_EMBEDDING_PROFILE: e5-small-614241f622f53c4eeff9890bdc4f31cfecc418b3-chunks-v1
+      RAG_COLLECTION_NAME: ${RAG_COLLECTION_NAME:-로컬 AI 테스트}
+      RAG_COLLECTION_NAMES: ${RAG_COLLECTION_NAMES:-로컬 AI 테스트,개인 업무 보고}
+      RAG_SYNC_INTERVAL_SECONDS: ${RAG_SYNC_INTERVAL_SECONDS:-300}
+      RESEARCH_MAX_DOCUMENTS: ${RESEARCH_MAX_DOCUMENTS:-10}
+      RESEARCH_TIMEOUT_SECONDS: ${RESEARCH_TIMEOUT_SECONDS:-120}
+      QWEN_TOKENIZER_PATH: /models/qwen/tokenizer.json
+    volumes:
+      - ./data:/app/data
+      - rag-models:/models:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+  rag-postgres:
+    profiles: [rag]
+    image: pgvector/pgvector:0.8.2-pg17@sha256:feb68f4f15446397d8cac7f4fe48fe4586de83160d1fc48b46283312d1a33966
+    environment:
+      POSTGRES_DB: rag
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: ${RAG_DB_PASSWORD:-}
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "work_mem=4MB", "-c", "max_connections=20"]
+    volumes:
+      - rag-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d rag"]
+      interval: 5s
+      retries: 12
+    restart: unless-stopped
+  embedding-worker:
+    profiles: [rag]
+    build:
+      context: .
+      dockerfile: Dockerfile.embedding
+    environment:
+      EMBEDDING_THREADS: "2"
+    volumes:
+      - rag-models:/models:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      retries: 18
+    restart: unless-stopped
+volumes:
+  ollama:
+  webui:
+  rag-postgres:
+  rag-models:

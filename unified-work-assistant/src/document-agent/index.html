@@ -1,0 +1,36 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Outline 문서 에이전트 · 개발 점검</title>
+<style>body{font:15px system-ui,sans-serif;background:#f5f7fb;color:#182235;margin:0}main{max-width:1200px;margin:40px auto;padding:0 24px}h1{font-size:30px;margin:8px 0}h2{font-size:20px}p{color:#526079;line-height:1.6}a{color:#145cf0}header{display:flex;justify-content:space-between;align-items:center}section{background:white;border:1px solid #dfe4ef;border-radius:12px;padding:22px;margin:18px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}button,select,input,textarea{font:inherit;padding:10px;border:1px solid #cbd4e3;border-radius:6px}button{cursor:pointer;background:#145cf0;color:white;border:0}textarea{box-sizing:border-box;width:100%;min-height:150px;font-family:monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:550px;overflow:auto;font-size:13px;background:#f5f7fb;padding:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;text-align:left;border-bottom:1px solid #edf0f7}.tag{font-size:12px;color:#526079}.failed{color:#bc2a30}.succeeded{color:#08774c}#message{white-space:pre-wrap}small{color:#526079}@media(max-width:800px){.grid{grid-template-columns:1fr}header{display:block}}</style>
+<main><header><div><span class="tag">LOCAL · DEVELOPER DIAGNOSTICS</span><h1>Outline 문서 에이전트</h1><p>연결 상태, 도구 실행, 저장 결과를 확인하는 개발자용 화면입니다.</p></div><a href="http://localhost:3001/?model=outline-assistant" target="_blank" rel="noopener">사용자 채팅 열기 ↗</a></header>
+<section><h2>연결 상태 <button id="refresh">새로고침</button></h2><div id="summary">확인 중…</div><pre id="state"></pre><small>단일 사용자 로컬 테스트 환경 · 문서는 Outline API로만 읽고 씁니다. 모델은 Ollama Qwen 4B를 사용합니다.</small></section>
+<div class="grid"><section><h2>도구 직접 점검</h2><p>채팅과 동일한 도구를 실행합니다. 저장·수정 도구는 실제 Outline을 변경합니다.</p><label>도구 <select id="tool"><option>catalog</option><option>read_document</option><option>prepare_document</option><option>save_document</option><option>research_documents</option><option>revise_document</option></select></label><p><label>테스트 대화 ID <input id="chat" value="manual-test"></label></p><textarea id="args">{}</textarea><p><button id="run">실행</button></p><div id="message"></div><pre id="result"></pre></section>
+<section><h2>선택한 실행 기록</h2><p>아래 기록에서 상세 보기를 누르면 입력, 초안, 읽기·저장 결과를 확인할 수 있습니다.</p><pre id="detail">기록을 선택하세요.</pre></section></div>
+<section><h2>최근 실행 기록</h2><p>대화별 초안·첨부·조사 결과는 로컬 SQLite에 보관합니다. 새로고침하면 진행 상태가 갱신됩니다.</p><table><thead><tr><th>시각</th><th>도구</th><th>상태</th><th>시간</th><th>상세</th></tr></thead><tbody id="events"></tbody></table></section></main>
+<script>
+const $=id=>document.getElementById(id),samples={catalog:{},read_document:{document_id:'문서 ID 또는 링크',offset:0},prepare_document:{text:'회의 메모를 여기에 입력',instruction:'주제별로 정리',template_name:''},save_document:{draft_id:'latest',collection_name:'로컬 AI 테스트',parent_title:''},research_documents:{topic:'Sat2City',collection_name:''},revise_document:{document_id:'문서 ID 또는 링크',instruction:'수정할 한 부분을 구체적으로 입력'}};
+async function api(path,body){let r=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Local-UI':'1'}:{},body:body?JSON.stringify(body):undefined});let d=await r.json();if(!r.ok)throw Error(JSON.stringify(d));return d}
+async function refresh(){try{let d=await api('/diagnostics');$('summary').textContent=`초안 ${d.counts.drafts}개 · 첨부 ${d.counts.files}개 · 조사 ${d.counts.research}개`;$('state').textContent=JSON.stringify(d.state,null,2);$('events').replaceChildren();for(let e of d.events){let tr=document.createElement('tr');for(let value of [new Date(e.started*1000).toLocaleString(),e.tool,e.status,e.seconds+'초']){let td=document.createElement('td');td.textContent=value;if(value===e.status)td.className=e.status;tr.append(td)}let td=document.createElement('td'),b=document.createElement('button');b.textContent='상세';b.onclick=async()=>{$('detail').textContent=JSON.stringify(await api('/diagnostics/events/'+e.id),null,2)};td.append(b);tr.append(td);$('events').append(tr)}}catch(e){$('state').textContent=String(e)}}
+let activeTask=null;
+const stop=document.createElement('button');stop.textContent='중지';stop.disabled=true;$('run').after(stop);
+stop.onclick=async()=>{if(activeTask){await api('/agent/cancel',activeTask);$('message').textContent='중지 요청 · 결과 보존 중';}};
+$('refresh').onclick=refresh;
+$('tool').onchange=()=>{$('args').value=JSON.stringify(samples[$('tool').value],null,2)};
+$('run').onclick=async()=>{
+  $('run').disabled=true;$('message').textContent='대기 중…';
+  try{
+    let request={tool:$('tool').value,arguments:JSON.parse($('args').value),chat_id:$('chat').value,message_id:crypto.randomUUID()};
+    let d=await api('/agent/submit',request);activeTask={...request,arguments:{event_id:d.event_id}};stop.disabled=false;
+    while(['queued','running'].includes(d.status)){
+      $('message').textContent=`${d.status} · ${d.progress||'대기 중'} · ${d.seconds||0}초`;
+      if(d.display)$('result').textContent=d.display;
+      await new Promise(resolve=>setTimeout(resolve,1000));d=await api('/agent/result',activeTask);
+    }
+    $('result').textContent=JSON.stringify(d,null,2);$('message').textContent=d.status;
+  }catch(e){$('message').textContent=String(e)}
+  finally{activeTask=null;stop.disabled=true;$('run').disabled=false;refresh()}
+};
+const ragPanel=document.createElement('section');ragPanel.innerHTML='<h2>RAG 검색 색인</h2><button id="ragSync">변경 동기화</button><pre id="ragState"></pre>';
+document.querySelector('main').append(ragPanel);
+async function ragStatus(){try{$('ragState').textContent=JSON.stringify(await api('/rag/status'),null,2)}catch(e){$('ragState').textContent=String(e)}}
+$('ragSync').onclick=async()=>{$('ragSync').disabled=true;try{$('ragState').textContent=JSON.stringify(await api('/rag/sync',{}),null,2)}catch(e){$('ragState').textContent=String(e)}finally{$('ragSync').disabled=false;}};
+refresh();ragStatus();
+</script></html>

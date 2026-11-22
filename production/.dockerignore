@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.runtime
+dist
+.venv
+.build-venv
+**/__pycache__
+**/node_modules
+**/.git
+**/build
+**/*.sqlite*
+**/*.db
+**/test_*.py
+scripts
+reports

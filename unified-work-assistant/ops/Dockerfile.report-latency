@@ -1,0 +1,3 @@
+FROM unified-work-assistant/workhub:report-fastpath-20261007
+COPY src/workhub/report_parser.py /app/workhub/report_parser.py
+COPY src/workhub/ai_runtime.py /app/workhub/ai_runtime.py

@@ -1,0 +1,31 @@
+import fs from 'node:fs';import path from 'node:path';import {createRequire} from 'node:module';
+import {Session,root,settings} from './sso_test_client.mjs';
+const checks={},assert=(v,k)=>{if(!v)throw Error(k);checks[k]=true;console.log('PASS',k)};
+const admin=new Session();await admin.login(settings.urls.outline+'/auth/oidc');
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE);
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+try{
+  const context=await browser.newContext({viewport:{width:1400,height:960}});
+  await context.addCookies([...admin.jar].filter(([name])=>!name.startsWith('authentik')).map(([name,value])=>({name,value,domain:new URL(settings.urls.outline).hostname,path:'/',httpOnly:!name.includes('csrf'),sameSite:'Lax'})));
+  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(settings.urls.outline+'/search?q='+encodeURIComponent('Docker'));
+  await page.getByRole('button',{name:'검색 대상 설정',exact:true}).click({timeout:45000});
+  await page.getByRole('textbox',{name:'컬렉션 찾기'}).fill('검색 시연 A');
+  await page.getByRole('checkbox',{name:'AI 검색에 포함',exact:true}).waitFor({timeout:45000});
+  assert(await page.getByRole('checkbox',{name:'AI 검색에 포함',exact:true}).isChecked(),'independent_knowledge_included_in_admin_ui');
+  const rooms=page.getByRole('combobox',{name:'공개할 채팅방'});
+  assert((await rooms.innerText()).includes('ai-search-demo'),'channel_policy_control_in_same_screen');
+  await rooms.selectOption({label:'ai-search-demo · 채널'});
+  assert(await page.getByRole('checkbox',{name:'검색 시연 A',exact:true}).isChecked(),'channel_shared_collection_visible');
+  await page.screenshot({path:path.join(root,'reports/search-ui-admin.png'),fullPage:true});
+  await page.goto(settings.urls.outline+'/search?q=Docker&statusFilter=draft');
+  await page.getByTestId('ai-search-run').waitFor({timeout:45000});
+  assert(await page.getByTestId('ai-search-run').isDisabled(),'draft_only_disables_ai_explicitly');
+  assert((await page.getByTestId('ai-search').innerText()).includes('필터를 변경'),'unsupported_filter_explained');
+  await page.goto(settings.urls.outline+'/search');await page.getByTestId('ai-search-run').waitFor({timeout:45000});
+  assert(await page.getByTestId('ai-search-run').isDisabled(),'empty_search_disables_ai');
+  await page.goto(settings.urls.outline+'/search?q=Docker&titleFilter=true');await page.getByTestId('ai-search-run').waitFor({timeout:45000});
+  assert((await page.getByTestId('ai-search').innerText()).includes('제목이 일치'),'title_only_scope_explained');
+  assert(errors.length===0,'admin_ui_no_runtime_errors');
+  fs.writeFileSync(path.join(root,'reports/search-ui-extra-results.json'),JSON.stringify({at:new Date().toISOString(),checks},null,2));
+}finally{await browser.close()}

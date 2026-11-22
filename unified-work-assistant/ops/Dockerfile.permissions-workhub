@@ -1,0 +1,2 @@
+FROM workhub-release/workhub:20260921-1
+COPY src/workhub /app/workhub

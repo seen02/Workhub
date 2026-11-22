@@ -1,0 +1,45 @@
+# Private configuration; only blank examples belong in Git.
+.env
+.env.*
+!.env.example
+!.env.vm.example
+!.env.sample
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+id_rsa*
+id_ed25519*
+# Generated files, dependencies and persistent data.
+node_modules/
+.yarn/
+build/
+dist/
+.runtime/
+.venv/
+.build-venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+coverage/
+*.tsbuildinfo
+*.db
+*.sqlite*
+*.log
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+!/outline/server/test/fixtures/*.zip
+*.whl
+backups/
+reports/
+checksums.json
+# Project documents live in ../docs/production; keep license notices trackable.
+.DS_Store
+Thumbs.db

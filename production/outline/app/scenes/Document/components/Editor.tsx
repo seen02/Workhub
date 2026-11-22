@@ -1,0 +1,337 @@
+import { observer } from "mobx-react";
+import * as React from "react";
+import { useTranslation } from "react-i18next";
+import { mergeRefs } from "react-merge-refs";
+import { useLocation, useRouteMatch } from "react-router-dom";
+import styled from "styled-components";
+import Text from "@shared/components/Text";
+import type { CommentAnchor } from "@shared/editor/commands/comment";
+import { richExtensions, withComments } from "@shared/editor/nodes";
+import { getLangFor } from "@shared/utils/language";
+import { DocumentPreference } from "@shared/types";
+import { colorPalette } from "@shared/constants";
+import Comment from "~/models/Comment";
+import type Document from "~/models/Document";
+import { useSelectionTaskCreate } from "~/components/WorkhubTaskCreate/SelectionTaskCreate";
+import { SelectionTaskContext } from "~/components/WorkhubTaskCreate/SelectionTaskContext";
+import { useDailyReportActions } from "~/components/DailyReportActions";
+import type Template from "~/models/Template";
+import type { RefHandle } from "~/components/ContentEditable";
+import { useDocumentContext } from "~/components/DocumentContext";
+import type { Props as EditorProps } from "~/components/Editor";
+import Editor from "~/components/Editor";
+import { useSplitView } from "~/components/SplitView/context";
+import type { Editor as SharedEditor } from "~/editor";
+import Flex from "~/components/Flex";
+import Time from "~/components/Time";
+import { withUIExtensions } from "~/editor/extensions";
+import useCurrentTeam from "~/hooks/useCurrentTeam";
+import useCurrentUser from "~/hooks/useCurrentUser";
+import { useFocusedComment } from "~/hooks/useFocusedComment";
+import { useLocationSidebarContext } from "~/hooks/useLocationSidebarContext";
+import usePolicy from "~/hooks/usePolicy";
+import useQuery from "~/hooks/useQuery";
+import useStores from "~/hooks/useStores";
+import {
+  documentHistoryPath,
+  documentPath,
+  matchDocumentHistory,
+} from "~/utils/routeHelpers";
+import { decodeURIComponentSafe } from "~/utils/urls";
+import MultiplayerEditor from "./AsyncMultiplayerEditor";
+import DocumentMeta from "./DocumentMeta";
+import DocumentTitle from "./DocumentTitle";
+import { first } from "es-toolkit/compat";
+import useShare from "@shared/hooks/useShare";
+import CodeWordBreak from "@shared/editor/extensions/CodeWordBreak";
+
+const extensions = [
+  CodeWordBreak,
+  ...withUIExtensions(withComments(richExtensions)),
+];
+
+type Props = Omit<EditorProps, "editorStyle"> & {
+  onChangeTitle: (title: string) => void;
+  onChangeIcon: (icon: string | null, color: string | null) => void;
+  id: string;
+  document: Document | Template;
+  isDraft: boolean;
+  multiplayer?: boolean;
+  onSave: (options: {
+    done?: boolean;
+    autosave?: boolean;
+    publish?: boolean;
+  }) => void;
+  children?: React.ReactNode;
+  beforeContent?: React.ReactNode;
+  readOnlyBody?: React.ReactNode;
+};
+
+/**
+ * The main document editor includes an editable title with metadata below it,
+ * and support for commenting.
+ */
+function DocumentEditor(props: Props, ref: React.ForwardedRef<SharedEditor>) {
+  const editorRef = React.useRef<SharedEditor>(null);
+  const titleRef = React.useRef<RefHandle>(null);
+  const { t } = useTranslation();
+  const match = useRouteMatch();
+  const location = useLocation();
+  const { setFocusedCommentId } = useDocumentContext();
+  const focusedComment = useFocusedComment();
+  const { ui, comments } = useStores();
+  const { pane } = useSplitView();
+  const user = useCurrentUser({ rejectOnEmpty: false });
+  const team = useCurrentTeam({ rejectOnEmpty: false });
+  const sidebarContext = useLocationSidebarContext();
+  const params = useQuery();
+  const { shareId, showLastUpdated } = useShare();
+  const {
+    document,
+    onChangeTitle,
+    onChangeIcon,
+    isDraft,
+    readOnly,
+    children,
+    beforeContent,
+    readOnlyBody,
+    multiplayer,
+    ...rest
+  } = props;
+  const can = usePolicy(document);
+  const selectionTask = useSelectionTaskCreate(
+    "isArchived" in document ? document : undefined,
+    !!user && !shareId && !rest.template && !readOnlyBody
+  );
+  const commentingEnabled = !!team?.commentingEnabled;
+  const dailyReport = useDailyReportActions(
+    "isArchived" in document ? document : undefined,
+    editorRef,
+    !!user &&
+      !shareId &&
+      !rest.template &&
+      !readOnlyBody &&
+      match.path !== matchDocumentHistory,
+    !!can.update && !readOnly
+  );
+
+  const iconColor = document.color ?? (first(colorPalette) as string);
+  const childRef = React.useRef<HTMLDivElement>(null);
+  const focusAtStart = React.useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.focusAtStart();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (focusedComment && focusedComment.documentId === document.id) {
+      const viewingResolved = params.get("resolved") === "";
+      if (
+        (focusedComment.isResolved && !viewingResolved) ||
+        (!focusedComment.isResolved && viewingResolved)
+      ) {
+        setFocusedCommentId(focusedComment.id);
+      }
+      ui.setRightSidebar("comments", pane);
+    }
+  }, [focusedComment, ui, pane, document.id, params, setFocusedCommentId]);
+
+  // Save document when blurring title, but delay so that if clicking on a
+  // button this is allowed to execute first.
+  const handleBlur = React.useCallback(() => {
+    setTimeout(() => props.onSave({ autosave: true }), 250);
+  }, [props]);
+
+  const handleGoToNextInput = React.useCallback(
+    (insertParagraph: boolean) => {
+      if (insertParagraph && editorRef.current) {
+        const { view } = editorRef.current;
+        const { dispatch, state } = view;
+        dispatch(state.tr.insert(0, state.schema.nodes.paragraph.create()));
+      }
+
+      focusAtStart();
+    },
+    [focusAtStart]
+  );
+
+  // Create a Comment model in local store when a comment mark is created, this
+  // acts as a local draft before submission.
+  const handleDraftComment = React.useCallback(
+    (
+      commentId: string,
+      createdById: string,
+      options?: { focus: boolean; anchor?: CommentAnchor }
+    ) => {
+      if (comments.get(commentId) || createdById !== user?.id) {
+        return;
+      }
+
+      const comment = new Comment(
+        {
+          documentId: props.id,
+          createdAt: new Date(),
+          createdById,
+          reactions: [],
+        },
+        comments
+      );
+      comment.id = commentId;
+      comment.pendingAnchor = options?.anchor;
+      comments.add(comment);
+
+      if (options?.focus) {
+        setFocusedCommentId(commentId);
+      }
+    },
+    [comments, user?.id, props.id, setFocusedCommentId]
+  );
+
+  // Focus a comment and open the sidebar when its mark or gutter marker is
+  // clicked.
+  const handleClickCommentMark = React.useCallback(
+    (commentId: string) => {
+      setFocusedCommentId(commentId);
+      ui.setRightSidebar("comments", pane);
+    },
+    [setFocusedCommentId, ui, pane]
+  );
+
+  // Soft delete the Comment model when associated mark is totally removed.
+  const handleRemoveComment = React.useCallback(
+    async (commentId: string) => {
+      const comment = comments.get(commentId);
+      if (comment?.isNew) {
+        await comment?.delete();
+      }
+    },
+    [comments]
+  );
+
+  const {
+    setEditor,
+    setEditorInitialized,
+    updateState: updateDocState,
+  } = useDocumentContext();
+  const handleRefChanged = React.useCallback(setEditor, [setEditor]);
+  const EditorComponent = multiplayer ? MultiplayerEditor : Editor;
+
+  const childOffsetHeight = childRef.current?.offsetHeight || 0;
+  const editorStyle = React.useMemo(
+    () => ({
+      padding: "0 32px",
+      margin: "0 -32px",
+      paddingBottom: `calc(30vh - ${childOffsetHeight}px)`,
+    }),
+    [childOffsetHeight]
+  );
+
+  const handleInit = React.useCallback(
+    () => setEditorInitialized(true),
+    [setEditorInitialized]
+  );
+
+  const handleDestroy = React.useCallback(
+    () => setEditorInitialized(false),
+    [setEditorInitialized]
+  );
+
+  const direction = titleRef.current?.getComputedDirection();
+
+  return (
+    <SelectionTaskContext.Provider value={selectionTask.onCreateTask}>
+      <Flex auto column>
+        <DocumentTitle
+          ref={titleRef}
+          readOnly={readOnly}
+          documentId={document.id}
+          title={
+            !document.title && readOnly
+              ? document.titleWithDefault
+              : document.title
+          }
+          icon={document.icon}
+          color={iconColor}
+          onChangeTitle={onChangeTitle}
+          onChangeIcon={onChangeIcon}
+          onGoToNextInput={handleGoToNextInput}
+          onBlur={handleBlur}
+          placeholder={t("Untitled")}
+        />
+        {shareId ? (
+          showLastUpdated && document.updatedAt ? (
+            <SharedMeta type="tertiary">
+              {t("Last updated")}{" "}
+              <Time dateTime={document.updatedAt} addSuffix />
+            </SharedMeta>
+          ) : null
+        ) : !rest.template ? (
+          <DocumentMeta
+            document={document as Document}
+            to={{
+              pathname:
+                match.path === matchDocumentHistory
+                  ? documentPath(document as Document)
+                  : documentHistoryPath(document as Document),
+              state: { sidebarContext },
+            }}
+            rtl={direction === "rtl"}
+          />
+        ) : null}
+        {beforeContent}
+        {readOnlyBody || (
+          <EditorComponent
+            ref={mergeRefs([ref, editorRef, handleRefChanged])}
+            lang={getLangFor(document.language)}
+            autoFocus={!!document.title && !props.defaultValue}
+            placeholder={t("Type '/' to insert, or start writing…")}
+            scrollTo={decodeURIComponentSafe(location.hash)}
+            readOnly={readOnly}
+            userId={user?.id}
+            focusedCommentId={focusedComment?.id}
+            onClickCommentMark={
+              commentingEnabled && can.comment
+                ? handleClickCommentMark
+                : undefined
+            }
+            onCreateCommentMark={
+              commentingEnabled && can.comment ? handleDraftComment : undefined
+            }
+            onDeleteCommentMark={
+              commentingEnabled && can.comment ? handleRemoveComment : undefined
+            }
+            onOpenCommentsSidebar={
+              commentingEnabled
+                ? () => ui.setRightSidebar("comments", pane)
+                : undefined
+            }
+            onInit={handleInit}
+            onDestroy={handleDestroy}
+            onChange={updateDocState}
+            headingPrefix={
+              "preferences" in document
+                ? document.getPreference(DocumentPreference.HeadingPrefix)
+                : undefined
+            }
+            extensions={extensions}
+            editorStyle={editorStyle}
+            {...rest}
+            dailyReportEnabled={dailyReport.enabled}
+            onDailyReportAction={dailyReport.onAction}
+            canComment={commentingEnabled && can.comment}
+          />
+        )}
+        {!readOnlyBody && <div ref={childRef}>{children}</div>}
+        {selectionTask.dialog}
+        {dailyReport.dialog}
+      </Flex>
+    </SelectionTaskContext.Provider>
+  );
+}
+
+const SharedMeta = styled(Text)`
+  margin: -12px 0 2em 0;
+  font-size: 14px;
+`;
+
+export default observer(React.forwardRef(DocumentEditor));

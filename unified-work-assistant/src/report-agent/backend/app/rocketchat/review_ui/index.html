@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>보고 수정 · Workhub</title><link rel="stylesheet" href="/assets/review.css"><script src="/assets/report-format.js" defer></script><script src="/assets/review.js" defer></script></head>
+<body><header><div><span class="eyebrow">Workhub · LOCAL POC</span><h1>보고 수정</h1></div><nav><a href="/assets/team-guide.html" target="_blank" rel="noopener noreferrer">사용 안내</a><a data-personal-chat href="http://127.0.0.1:3000/group/개인보고-poc-employee">로켓챗</a><button id="logout" hidden>로그아웃</button></nav></header>
+<main><div id="notice" role="status" aria-live="polite"></div>
+<section class="card" id="login-panel"><span class="step">로그인</span><h2>로켓챗 계정으로 로그인</h2><form id="login"><label>아이디<input id="username" autocomplete="username" value="poc-employee" required></label><label>비밀번호<input id="password" type="password" autocomplete="current-password" required></label><button type="submit" class="primary">로그인</button></form></section>
+<div id="workspace" hidden>
+  <section class="card select-card"><div class="section-title"><div><span class="step">1</span><h2>수정할 보고 선택</h2></div><button id="reload" type="button">새로고침</button></div><div id="draft-list"></div></section>
+  <section id="editor" hidden>
+    <div class="edit-grid">
+      <section class="card preview-card"><span class="step">2</span><h2>이 내용으로 저장됩니다</h2><pre id="preview"></pre></section>
+      <section class="edit-column"><div class="section-heading"><span class="step">3</span><h2>프로젝트·내용 수정</h2></div>
+        <form id="edit-form"><div id="items"></div><button type="button" id="add">+ 업무 추가</button><input id="reason" type="hidden" value="보고 내용 확인"></form>
+      </section>
+    </div>
+    <section class="card action-card"><div><span class="step">4</span><h2>내용 저장 또는 보내기</h2><p id="publication-status">먼저 수정한 내용을 저장하세요.</p></div><div class="action-buttons"><button type="submit" form="edit-form" class="primary" id="confirm">내용 저장</button><button id="publication-confirm" type="button" class="send" hidden>업무보고방에 보내기</button></div></section>
+  </section>
+</div></main></body></html>

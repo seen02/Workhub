@@ -1,0 +1,56 @@
+.local/
+runtime/
+backups/
+reports/
+deployment/.private/
+deployment/artifacts/
+deployment/reports/
+deployment-next-*/
+deployment-archive/
+
+# Local review output and generated upstream source
+.ui-review/
+output/
+integrations/outline/outline-*/
+integrations/outline/upstream.tar.gz
+
+# README, license notices, and source documentation are intentionally tracked.
+
+# Local credentials and runtime configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+
+# Local databases and logs
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Generated evaluation and test output
+src/report-agent/backend/evals/results/
+src/report-agent/backend/evals/comparison_50.json
+
+# Language and editor caches
+.task-edit-venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+.coverage
+.idea/
+.vscode/
+.DS_Store
+
+src/report-agent/rocketchat/.local/
+src/document-agent/data/

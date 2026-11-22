@@ -1,0 +1,26 @@
+FROM node:26.3.0-bookworm AS build
+WORKDIR /opt/outline
+RUN apt-get update && apt-get install -y --no-install-recommends cmake python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN npm install -g corepack@0.34.0 && corepack enable
+COPY outline/package.json outline/yarn.lock outline/.yarnrc.yml ./
+COPY outline/patches ./patches
+RUN yarn install --immutable && yarn patch-package
+COPY outline/ ./
+ENV NODE_OPTIONS=--max-old-space-size=8192
+RUN yarn tsc --noEmit && yarn build
+RUN yarn workspaces focus --production && yarn patch-package
+
+FROM node:26.3.0-bookworm-slim
+WORKDIR /opt/outline
+ENV NODE_ENV=production PORT=3000 MALLOC_ARENA_MAX=2 FILE_STORAGE_LOCAL_ROOT_DIR=/var/lib/outline/data
+RUN mkdir -p /var/lib/outline/data && chown -R node:node /var/lib/outline
+COPY --from=build --chown=node:node /opt/outline/build ./build
+COPY --from=build --chown=node:node /opt/outline/server ./server
+COPY --from=build --chown=node:node /opt/outline/public ./public
+COPY --from=build --chown=node:node /opt/outline/node_modules ./node_modules
+COPY --from=build --chown=node:node /opt/outline/package.json /opt/outline/.sequelizerc ./
+COPY --from=build --chown=node:node /opt/outline/LICENSE ./LICENSE
+COPY --chmod=755 docker/outline-entrypoint.sh /usr/local/bin/outline-entrypoint
+USER node
+EXPOSE 3000
+CMD ["/usr/local/bin/outline-entrypoint"]

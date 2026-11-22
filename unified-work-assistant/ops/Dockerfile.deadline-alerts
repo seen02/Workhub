@@ -1,0 +1,5 @@
+FROM unified-work-assistant/workhub:report-latency-20261007
+COPY src/workhub/deadline_alerts.py src/workhub/test_deadline_alerts.py /app/workhub/
+COPY ops/patch_deadline_alerts_runtime.py /app/patch_deadline_alerts_runtime.py
+RUN python /app/patch_deadline_alerts_runtime.py
+COPY ops/run_workhub_tests.py /app/run_workhub_tests.py

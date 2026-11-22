@@ -1,0 +1,2 @@
+FROM unified-work-assistant/workhub:report-fastpath-before-20261007
+COPY src/workhub/report_parser.py /app/workhub/report_parser.py

@@ -1,0 +1,5 @@
+FROM workhub-release/outline:20261007-1
+USER root
+WORKDIR /opt/outline
+COPY outline-65be53c3eb093a535ce260eb2f2da897bb07a29e/ ./
+RUN npm install -g corepack@0.34.0 && corepack enable && yarn install --immutable && yarn patch-package
