@@ -1,0 +1,9 @@
+Workhub Source Publication Notice
+
+Copyright remains with the respective rights holders. This source publication is
+available for review and grants no additional license to use, modify, reproduce
+or redistribute the materials. Existing rights and agreements remain in force.
+
+This repository contains Workhub's own integration code. Outline, Rocket.Chat,
+Authentik, Ollama, model weights and other external components retain their own
+license terms. Those components are not redistributed by this notice.
