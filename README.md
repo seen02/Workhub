@@ -1,44 +1,127 @@
+<img src="./unified-work-assistant/src/workhub/static/workhub-logo.png" width="220" alt="Workhub 로고">
+
 # Workhub
 
-Rocket.Chat에 쓴 진행 보고를 Outline의 업무로 연결하는 사내 업무 비서입니다. 서버가 Qwen으로 문장을 해석하고, 직원이 확인한 보고를 문서와 채팅방에 반영합니다. 개인 채팅으로 마감 업무도 알려줍니다.
+**채팅에 쓴 진행 보고를 프로젝트 업무에 반영하는 사내 업무 비서**
 
-현장실습 프로젝트의 실제 소스, 테스트, 설계 문서를 원본 경로에 맞춰 담았습니다.
+## Service Overview
 
-| 폴더 | 내용 |
+Workhub는 Rocket.Chat의 채팅과 Outline의 업무 문서를 연결하는 현장실습 프로젝트입니다. 담당자가 봇에게 진행 상황을 한 문장으로 보내면, Workhub가 대상 업무와 완료 기준을 찾아 보고 초안을 만듭니다. 담당자가 초안을 확인하고 게시할 채널을 고르면, 보고가 채팅방에 게시되고 Outline의 업무 문서에도 반영됩니다.
+
+Outline에서는 프로젝트별로 업무를 등록하고 담당자와 완료 기준을 지정할 수 있습니다. 진행 상황은 칸반과 통계에서 확인합니다. 로컬 테스트 구성은 여기에 채팅 보고, 개인 마감 알림, 문서 AI 검색을 연결합니다. 운영용 구성은 Outline과 Authentik 로그인, 업무 관리 API를 중심으로 구성했습니다.
+
+## Tech Stack
+
+| Area | Stack |
 | --- | --- |
-| [로컬 연동 구성](unified-work-assistant/) | [Workhub 업무 API·웹 화면](unified-work-assistant/src/workhub/), [보고 에이전트](unified-work-assistant/src/report-agent/), [문서 검색 에이전트](unified-work-assistant/src/document-agent/), [Outline 연동 패치](unified-work-assistant/integrations/outline/) |
-| [운영용 소스](production/) | Outline·Authentik 로그인과 업무 관리에 사용한 [백엔드](production/workhub/), [Outline 변경 파일](production/outline/), [빌드·설치 설정 예시](production/) |
-| [설계와 검증 문서](docs/README.md) | 채팅 보고, 문서 검색, 권한, 마감 알림, 배포의 구조와 검증 결과 |
+| 문서·업무 화면 | Outline 1.10.0, React, TypeScript, ProseMirror |
+| Outline 서버 | Node.js, Koa |
+| 업무 관리 API | Python, FastAPI, Uvicorn, SQLite |
+| 인증·배포 | Authentik(OIDC), Nginx, Docker Compose |
+| 문서 저장 | PostgreSQL, Redis(Outline 캐시·작업 큐) |
+| 채팅 연동 · 로컬 | Rocket.Chat 8.5.0, MongoDB |
+| 보고 해석·문서 검색 · 로컬 | Ollama, Qwen3 4B, Open WebUI, PostgreSQL + pgvector, multilingual-e5-small |
 
-## 먼저 볼 코드
+## Key Features
 
-- [보고 해석](unified-work-assistant/src/workhub/report_parser.py)과 [모델 호출을 건너뛰는 경우의 테스트](unified-work-assistant/src/workhub/test_report_fastpath.py)
-- [보고 확정·문서 반영](unified-work-assistant/src/workhub/reports.py)과 [확정·재시도 테스트](unified-work-assistant/src/workhub/test_reports.py)
-- [마감 알림](unified-work-assistant/src/workhub/deadline_alerts.py)과 [발송 권한·중복 방지 테스트](unified-work-assistant/src/workhub/test_deadline_alerts.py)
-- [문서 검색·권한 설계](docs/local/src/document-agent/RAG-IMPLEMENTATION.md)와 [보고 성능 개선 기록](docs/local/보고_성능_및_신뢰성_개선_명세.md)
+### 채팅 보고와 개인 마감 알림 · 로컬
+
+한 메시지에 여러 업무의 진행 상황을 적으면 업무별 완료 기준과 상태를 보여 주는 초안이 생성됩니다. 담당자는 초안을 수정하거나 취소할 수 있고, 확정한 내용은 선택한 채팅방과 Outline 업무 문서에 반영됩니다. 오전 9시(한국 시간)에는 미완료 마감 업무를 개인 대화로 받고, 알림을 끄거나 업무 문서로 바로 이동할 수 있습니다. [채팅 시연 가이드](docs/local/내_업무_시연_가이드.md) · [마감 알림 검증](docs/local/마감_알림_구현_검증_결과.md)
+
+<!-- 캡처 추가 위치: docs/images/workhub-report-flow.png -->
+
+### 업무 등록과 칸반
+
+Outline 컬렉션을 프로젝트에 연결하고 업무에 담당자, 마감일, 완료 기준을 지정합니다. 업무 목록의 칸반에서 상태를 옮길 수 있으며, 게시된 문서에서 선택한 텍스트를 출처와 함께 새 업무로 등록할 수 있습니다. 일일 업무보고에는 날짜별 보기와 미완료 항목 이월 기능을 추가했습니다. [Outline 변경 고지](docs/local/integrations/outline/MODIFICATIONS.md) · [일일 업무보고 변경 기록](docs/production/changes/DAILY-REPORT.txt)
+
+<!-- 캡처 추가 위치: docs/images/workhub-kanban.png -->
+
+### 프로젝트 진행 통계
+
+프로젝트·담당자·마감 기간별로 업무 진행률과 마감 일정을 확인합니다. 관리자는 접근 권한이 있는 관리 범위의 통계를 볼 수 있고, 직원의 통계는 본인이 참여한 업무로 제한됩니다. [통계 화면과 권한 검증](docs/local/Outline_진행_통계_구현_검증_결과.md)
+
+<!-- 캡처 추가 위치: docs/images/workhub-analytics.png -->
+
+### 출처를 보여 주는 문서 검색 · 로컬
+
+Outline 검색 화면에서 **AI 검색**을 선택하면 문서 비서가 키워드와 벡터 검색 결과를 결합합니다. 현재 읽을 수 있는 Outline 원문을 확인해 답변과 출처 링크를 제공합니다. [검색 구현 및 검증](docs/local/검색_기능_강화_구현_검증_결과.md)
+
+<!-- 캡처 추가 위치: docs/images/workhub-knowledge-search.png -->
+
+<details>
+<summary>기능별 스크린샷 추가 가이드</summary>
+
+아래 파일을 `docs/images/`에 저장한 뒤, 해당 기능 바로 아래의 HTML 주석 자리에 마크다운 이미지 링크를 추가합니다. 예를 들어 보고 화면은 `![Rocket.Chat 보고 초안과 Outline 반영 결과](docs/images/workhub-report-flow.png)`로 삽입합니다. 테스트 워크스페이스의 가상 프로젝트와 계정을 사용하고, 브라우저 주소창·계정 이메일·실제 문서 제목은 캡처 영역에서 제외합니다.
+
+| 파일 | 캡처할 장면 |
+| --- | --- |
+| `workhub-report-flow.png` | 같은 업무의 **Rocket.Chat 보고 초안 → Outline 반영 결과**를 좌우로 배치합니다. 왼쪽에는 봇 DM의 원문 보고, 대상 업무, 완료 기준, `보고 및 반영` 버튼을, 오른쪽에는 같은 업무명의 문서와 확정된 상태를 보여 줍니다. |
+| `workhub-kanban.png` | Outline 프로젝트의 **업무 목록** 본문에서 미착수·진행 중·보류·지연·완료 열이 보이도록 캡처합니다. 최소 세 가지 상태에 가상 업무 카드를 배치하고, 카드의 담당자와 마감일을 읽을 수 있게 여백을 자릅니다. |
+| `workhub-analytics.png` | Outline의 **진행 통계**에서 상단 요약 수치와 마감 일정, 하단의 프로젝트·담당자·기간 필터가 함께 보이게 캡처합니다. 한 화면에 담기 어렵다면 요약·일정 영역과 필터 영역을 위아래로 배치합니다. |
+| `workhub-knowledge-search.png` | Outline의 **AI 검색**에서 가상 질문, 답변, 최소 한 개의 출처 제목 또는 링크가 함께 보이는 결과 화면을 캡처합니다. 질문은 예를 들어 “온보딩 체크리스트의 승인 절차는 무엇인가요?”처럼 답변의 근거가 드러나는 문장으로 준비합니다. |
+
+</details>
+
+## System Architecture
+
+### 운영용 · Outline 업무 관리
+
+```mermaid
+flowchart LR
+    User["사용자 브라우저"] --> Proxy["Nginx"]
+    Proxy --> Outline["커스텀 Outline"]
+    Proxy --> Auth["Authentik"]
+    Outline -->|OIDC 로그인| Auth
+    Outline -->|업무 관리 요청| Workhub["Workhub API"]
+    Workhub -->|업무 문서 조회·갱신| Outline
+    Outline --> OutlineDB[("PostgreSQL · Redis")]
+    Auth --> AuthDB[("Authentik PostgreSQL")]
+    Workhub --> State[("SQLite")]
+```
+
+Outline이 업무 문서의 원본을 관리하고 Workhub API가 업무 등록, 상태 변경, 진행 통계를 처리합니다. [운영용 Compose 구성](production/compose.yaml)
+
+### 로컬 테스트용 · 채팅 보고와 AI 검색
+
+```mermaid
+flowchart LR
+    Chat["Rocket.Chat"] -->|보고 입력·확정| Bot["Workhub API · 봇"]
+    Bot -->|초안·게시·마감 알림| Chat
+    Bot -->|업무 조회·확정 반영| Wiki["Outline"]
+    Bot -->|필요할 때 보고 해석| Model["Ollama · Qwen3"]
+    Bot --> Log[("SQLite · 초안과 처리 이력")]
+    Wiki -->|문서 검색 요청| RAG["문서 검색 에이전트"]
+    RAG -->|원문 조회·권한 확인| Wiki
+    RAG --> Index[("PostgreSQL · pgvector")]
+    RAG -->|근거 기반 답변 생성| Model
+```
+
+채팅 보고는 사용자 확인을 거쳐 Outline에 반영됩니다. 문서 검색은 색인에서 후보를 찾은 뒤 Outline에서 현재 권한과 원문을 확인합니다. [로컬 구성과 검증 범위](docs/local/OVERVIEW.md)
 
 ## Challenges & Solutions
 
-### 1. 업무가 분명한 보고의 처리 지연
+### 1. 대상 업무가 명확해도 보고 초안이 늦게 생성되는 문제
 
-보고에 업무명과 완료 기준이 정확히 들어 있어도 관련 업무를 다시 검색하고 모델을 사용할 수 있는지 확인하느라 시간이 걸렸습니다. 최신 업무 목록에서 대상 업무와 완료 기준을 하나로 정할 수 있으면 바로 연결하도록 바꿨습니다. 이름이 겹치거나 문장이 모호하면 기존 후보 탐색 절차를 거칩니다.
+최신 업무 목록에서 업무와 완료 기준이 하나로 정해지면 직접 연결하고, 모호한 보고에는 후보 탐색을 적용했습니다. 같은 PC에서 입력별로 전후 각 2회 측정한 결과, 한 프로젝트의 업무 두 건은 평균 **11.510초 → 4.629초**, 두 프로젝트의 업무 두 건은 **10.766초 → 4.472초**로 줄었습니다. 두 입력 모두 모델 호출은 전후 0회였고, 검색 후보 API 호출은 보고당 1회에서 0회로 줄었습니다. [측정 기록](docs/local/보고_성능_및_신뢰성_개선_명세.md) · [직접 해석 테스트](unified-work-assistant/src/workhub/test_report_fastpath.py)
 
-같은 PC와 입력에서 보고를 해석해 업무에 연결하는 시간을 전후 각 2회 측정했습니다. 한 프로젝트의 업무 두 건은 평균 **11.510초 → 4.629초**, 두 프로젝트의 업무 두 건은 **10.766초 → 4.472초**로 줄었습니다. 두 입력 모두 변경 전후 모델 호출은 0회였습니다. [처리 경로 테스트](unified-work-assistant/src/workhub/test_report_fastpath.py)
+### 2. 초안 확인 중 문서 내용이나 권한이 바뀌는 문제
 
-### 2. 보고 확정 중 문서 변경과 일부 저장 실패
+확정 직전에 최신 문서와 수정 권한을 다시 확인합니다. 초안을 생성했을 때와 문서가 달라지면 저장을 멈추고 다시 확인하도록 안내합니다. 채팅 게시와 문서별 저장 결과를 SQLite에 따로 기록해, 일부 처리에 실패해도 이미 반영된 내용을 확인하고 남은 작업만 재시도합니다. [보고 확정·재시도 테스트](unified-work-assistant/src/workhub/test_reports.py)
 
-직원이 초안을 보는 사이 담당자가 바뀌거나 동료가 문서를 수정할 수 있습니다. 확정 직전에 최신 문서와 수정 권한을 다시 확인하고, 초안을 만들 때와 문서가 달라지면 저장을 멈춰 다시 확인하도록 안내했습니다.
+### 3. 재시작이나 응답 유실로 마감 알림이 중복되는 문제
 
-채팅 게시 결과와 문서별 저장 결과는 SQLite에 각각 기록했습니다. 게시 응답이 끊기면 초안에 배정한 메시지 ID로 게시 여부를 확인하고, 문서 일부만 저장된 경우에는 이미 반영된 내용을 확인한 뒤 남은 문서만 다시 처리합니다. 테스트용 SQLite와 외부 서비스의 모의 응답으로 문서 변경, 권한 회수, 응답 끊김, 중복 제출을 재현했습니다. [보고 확정·재시도 테스트](unified-work-assistant/src/workhub/test_reports.py)
+발송 직전에 업무 상태, 열람 권한, 알림 설정을 재확인하고, 발송 이력과 메시지 ID를 저장합니다. 재시작 후에는 당일 기록을 확인하고, 응답이 유실되면 같은 메시지 ID로 발송 여부를 확인합니다. 기존 로컬 시험에서는 대상 3명의 개인 대화로 발송을 확인했습니다. [구현·검증 기록](docs/local/마감_알림_구현_검증_결과.md) · [알림 테스트](unified-work-assistant/src/workhub/test_deadline_alerts.py)
 
-### 3. 서비스 재시작과 응답 끊김으로 인한 마감 알림 중복
+## Repository Guide
 
-오전 9시 마감 알림을 발송하던 중 서비스가 재시작되거나 채팅 서버의 응답이 끊기면, 같은 알림을 다시 보낼 수 있었습니다. 발송 직전에 업무 상태, 열람 권한, 알림 설정을 다시 확인하고 발송 기록과 메시지 ID를 저장했습니다. 재시작 뒤에는 당일 기록을 확인하고, 응답이 끊겼을 때는 메시지 ID로 이미 발송됐는지 확인합니다.
+| 경로 | 내용 |
+| --- | --- |
+| [unified-work-assistant/](unified-work-assistant/) | Workhub API·봇, 문서 검색 에이전트, 기존 보고 PoC, Outline 연동 패치 |
+| [production/](production/) | 운영용 업무 관리 API, Outline 변경·추가 파일, Authentik·Nginx·Compose 설정 예시 |
+| [docs/](docs/) | 기능 설계, 검증 결과, 라이선스와 제3자 소프트웨어 고지 |
 
-로컬 시험 발송에서 대상 3명의 개인 채팅에 알림이 도착하는 것을 확인했습니다. 서비스 재시작, 권한 변경, 발송 직전 알림 끄기, 발송 응답 끊김도 테스트했습니다. [마감 알림 테스트](unified-work-assistant/src/workhub/test_deadline_alerts.py)
+이 공개본은 코드와 설계 검토용입니다. 로컬 Compose에는 별도의 환경 설정이 필요하고, 운영용 Outline 소스를 구성할 때는 [고정된 버전의 원본](unified-work-assistant/integrations/outline/upstream.lock.json)이 필요합니다. [로컬 실행 범위](docs/local/OVERVIEW.md) · [Outline 원본 복원 안내](docs/local/integrations/outline/MODIFICATIONS.md)
 
-## 실행 범위와 라이선스
+## License
 
-Rocket.Chat·Ollama·Qwen 연동은 로컬 테스트 구성에서 검증했습니다. 운영용은 Outline·Authentik과 업무 관리 API를 중심으로 구성했습니다. 전체 서비스를 실행하려면 외부 구성 요소, 실행 환경 변수와 [고정된 버전의 Outline 원본](unified-work-assistant/integrations/outline/upstream.lock.json)이 필요합니다. 공개본의 운영용 Outline 폴더에는 이 프로젝트에서 수정하거나 추가한 파일을 담았습니다.
-
-업무 데이터, 실제 계정·접속 설정, 사내 운영 절차와 환경별 검증 기록을 정리해 공개했습니다. Outline 원본과 파생 부분에는 기존 Business Source License 1.1이 적용됩니다. [라이선스](LICENSE) · [제3자 소프트웨어 및 출처](docs/THIRD_PARTY_NOTICES.md)
+Workhub 프로젝트 작성물에는 이 공개본으로 추가 이용 허락을 부여하지 않습니다. Outline 1.10.0의 수정·파생 부분에는 원본 **Business Source License 1.1**이 적용됩니다. Rocket.Chat은 설정에서 외부 이미지를 참조하며, Community의 MIT 적용 범위와 Enterprise의 별도 조건은 원문에서 확인할 수 있습니다. [저장소 이용 범위](LICENSE) · [라이선스 안내](docs/LICENSING.md) · [제3자 소프트웨어 고지](docs/THIRD_PARTY_NOTICES.md)
