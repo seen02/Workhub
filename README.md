@@ -24,43 +24,54 @@ Outline에서는 프로젝트별로 업무를 등록하고 담당자와 완료 �
 
 ## Key Features
 
-### 채팅 보고와 개인 마감 알림 · 로컬
+### 채팅 보고 · 로컬
 
-한 메시지에 여러 업무의 진행 상황을 적으면 업무별 완료 기준과 상태를 보여 주는 초안이 생성됩니다. 담당자는 초안을 수정하거나 취소할 수 있고, 확정한 내용은 선택한 채팅방과 Outline 업무 문서에 반영됩니다. 오전 9시(한국 시간)에는 미완료 마감 업무를 개인 대화로 받고, 알림을 끄거나 업무 문서로 바로 이동할 수 있습니다. [채팅 시연 가이드](docs/local/내_업무_시연_가이드.md) · [마감 알림 검증](docs/local/마감_알림_구현_검증_결과.md)
+Rocket.Chat에서 업무 진행 상황을 한 문장으로 보내면, 봇이 대상 업무와 완료 기준을 찾아 보고 초안을 보여 줍니다. 초안을 확인하고 **보고 및 반영**을 누르면 게시할 채널을 선택할 수 있습니다. 확정한 보고는 선택한 채팅방에 게시되고 Outline 업무 문서에도 반영됩니다.
 
-<!-- 캡처 추가 위치: docs/images/workhub-report-flow.png -->
+<table>
+  <tr>
+    <th align="left">문장 입력과 보고 초안</th>
+    <th align="left">채널 선택과 반영 확인</th>
+  </tr>
+  <tr>
+    <td valign="top"><img src="./docs/images/report-draft.png" width="490" alt="Rocket.Chat에 입력한 진행 상황과 봇이 만든 보고 초안"></td>
+    <td valign="top"><img src="./docs/images/report-channel.png" width="320" alt="Rocket.Chat에서 게시할 채널을 선택한 후 보고 전송과 업무 저장을 확인하는 화면"></td>
+  </tr>
+</table>
+
+<details>
+<summary>채널에 게시된 보고 보기</summary>
+<br>
+<img src="./docs/images/report-posted.png" width="460" alt="선택한 채널에 게시된 업무 보고와 완료 기준별 진행 상태">
+</details>
+
+### 내 업무 모아보기와 마감 알림 · 로컬
+
+봇에게 `내 업무`를 보내면 여러 프로젝트의 담당 업무를 마감 상태별로 모아 보고, 각 업무의 마감일과 완료 기준을 확인할 수 있습니다. 오전 9시(한국 시간)에는 미완료 마감 업무를 개인 대화로 안내합니다. 알림에서 업무 문서로 바로 이동하거나 수신을 끌 수 있습니다. [채팅 시연 가이드](docs/local/내_업무_시연_가이드.md) · [마감 알림 검증](docs/local/마감_알림_구현_검증_결과.md)
+
+<img src="./docs/images/my-tasks.png" width="560" alt="Rocket.Chat 내 업무 조회 결과에 표시된 기한 초과 업무, 예정 업무와 완료 기준">
 
 ### 업무 등록과 칸반
 
-Outline 컬렉션을 프로젝트에 연결하고 업무에 담당자, 마감일, 완료 기준을 지정합니다. 업무 목록의 칸반에서 상태를 옮길 수 있으며, 게시된 문서에서 선택한 텍스트를 출처와 함께 새 업무로 등록할 수 있습니다. 일일 업무보고에는 날짜별 보기와 미완료 항목 이월 기능을 추가했습니다. [Outline 변경 고지](docs/local/integrations/outline/MODIFICATIONS.md) · [일일 업무보고 변경 기록](docs/production/changes/DAILY-REPORT.txt)
+Outline 컬렉션을 프로젝트에 연결하고 업무에 담당자, 마감일, 완료 기준을 지정합니다. 업무 목록에서 카드를 다른 열로 옮겨 상태를 바꾸거나 **문서 목록** 탭으로 전환할 수 있습니다. 게시된 문서의 선택 영역을 출처와 함께 업무로 등록하고, 일일 업무보고의 미완료 항목을 이월할 수도 있습니다. [Outline 변경 고지](docs/local/integrations/outline/MODIFICATIONS.md) · [일일 업무보고 변경 기록](docs/production/changes/DAILY-REPORT.txt)
 
-<!-- 캡처 추가 위치: docs/images/workhub-kanban.png -->
+![Outline 업무 목록의 칸반 화면에 표시된 미착수, 진행 중, 보류, 지연, 완료 열](docs/images/kanban.png)
+
+<details>
+<summary>문서 목록 탭 보기</summary>
+<br>
+<img src="./docs/images/document-list.png" width="600" alt="같은 Outline 프로젝트의 업무가 문서 목록으로 표시된 화면">
+</details>
 
 ### 프로젝트 진행 통계
 
 프로젝트·담당자·마감 기간별로 업무 진행률과 마감 일정을 확인합니다. 관리자는 접근 권한이 있는 관리 범위의 통계를 볼 수 있고, 직원의 통계는 본인이 참여한 업무로 제한됩니다. [통계 화면과 권한 검증](docs/local/Outline_진행_통계_구현_검증_결과.md)
 
-<!-- 캡처 추가 위치: docs/images/workhub-analytics.png -->
+![Outline의 진행 통계 화면에 표시된 전체 진행률, 마감 초과 건수와 프로젝트별 현황](docs/images/analytics.png)
 
 ### 출처를 보여 주는 문서 검색 · 로컬
 
 Outline 검색 화면에서 **AI 검색**을 선택하면 문서 비서가 키워드와 벡터 검색 결과를 결합합니다. 현재 읽을 수 있는 Outline 원문을 확인해 답변과 출처 링크를 제공합니다. [검색 구현 및 검증](docs/local/검색_기능_강화_구현_검증_결과.md)
-
-<!-- 캡처 추가 위치: docs/images/workhub-knowledge-search.png -->
-
-<details>
-<summary>기능별 스크린샷 추가 가이드</summary>
-
-아래 파일을 `docs/images/`에 저장한 뒤, 해당 기능 바로 아래의 HTML 주석 자리에 마크다운 이미지 링크를 추가합니다. 예를 들어 보고 화면은 `![Rocket.Chat 보고 초안과 Outline 반영 결과](docs/images/workhub-report-flow.png)`로 삽입합니다. 테스트 워크스페이스의 가상 프로젝트와 계정을 사용하고, 브라우저 주소창·계정 이메일·실제 문서 제목은 캡처 영역에서 제외합니다.
-
-| 파일 | 캡처할 장면 |
-| --- | --- |
-| `workhub-report-flow.png` | 같은 업무의 **Rocket.Chat 보고 초안 → Outline 반영 결과**를 좌우로 배치합니다. 왼쪽에는 봇 DM의 원문 보고, 대상 업무, 완료 기준, `보고 및 반영` 버튼을, 오른쪽에는 같은 업무명의 문서와 확정된 상태를 보여 줍니다. |
-| `workhub-kanban.png` | Outline 프로젝트의 **업무 목록** 본문에서 미착수·진행 중·보류·지연·완료 열이 보이도록 캡처합니다. 최소 세 가지 상태에 가상 업무 카드를 배치하고, 카드의 담당자와 마감일을 읽을 수 있게 여백을 자릅니다. |
-| `workhub-analytics.png` | Outline의 **진행 통계**에서 상단 요약 수치와 마감 일정, 하단의 프로젝트·담당자·기간 필터가 함께 보이게 캡처합니다. 한 화면에 담기 어렵다면 요약·일정 영역과 필터 영역을 위아래로 배치합니다. |
-| `workhub-knowledge-search.png` | Outline의 **AI 검색**에서 가상 질문, 답변, 최소 한 개의 출처 제목 또는 링크가 함께 보이는 결과 화면을 캡처합니다. 질문은 예를 들어 “온보딩 체크리스트의 승인 절차는 무엇인가요?”처럼 답변의 근거가 드러나는 문장으로 준비합니다. |
-
-</details>
 
 ## System Architecture
 
